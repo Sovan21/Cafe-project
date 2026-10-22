@@ -1,0 +1,276 @@
+@import "tailwindcss";
+
+@theme {
+  /* Authentic Coffee Palette: From pure milk foam white to darkest espresso roast */
+  --color-cafe-50: #fcfaf7;
+  --color-cafe-100: #f4ede4;
+  --color-cafe-200: #e7dbce;
+  --color-cafe-300: #caa88f;
+  --color-cafe-400: #aa8265;
+  --color-cafe-500: #875f42;
+  --color-cafe-600: #66442e;
+  --color-cafe-700: #4a301f;
+  --color-cafe-800: #332014;
+  --color-cafe-900: #1f130b;
+  --color-cafe-950: #110b08;
+
+  --color-espresso: #170f0a;
+  --color-espresso-light: #231710;
+  --color-espresso-dark: #110b08;
+
+  /* Coffee Crema & Caramel Tone System (Mapped to orange & gold tokens for full site harmony) */
+  --color-orange-50: #fdf9f5;
+  --color-orange-100: #f7ede3;
+  --color-orange-200: #ebd4bf;
+  --color-orange-300: #dab391;
+  --color-orange-400: #c4884d;
+  --color-orange-500: #a86c3d;
+  --color-orange-600: #8c532b;
+  --color-orange-700: #6f3e1b;
+  --color-orange-800: #542d13;
+  --color-orange-900: #3a1c0b;
+  --color-orange-950: #220f05;
+
+  --color-orange-accent: #c4884d;
+  --color-orange-bright: #d6995e;
+  --color-orange-glow: #ebd4bf;
+  --color-orange-deep: #8c532b;
+
+  --color-gold-300: #ebd4bf;
+  --color-gold-400: #dab391;
+  --color-gold-500: #c4884d;
+  --color-gold-accent: #c4884d;
+  --color-gold-deep: #8c532b;
+
+  --color-emerald-accent: #10b981;
+  --color-emerald-deep: #065f46;
+
+  --font-serif: "Playfair Display", Georgia, serif;
+  --font-sans: "Plus Jakarta Sans", Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+  --shadow-neu-raised: 0 10px 30px -5px rgba(0, 0, 0, 0.7), 0 2px 6px rgba(0, 0, 0, 0.4);
+  --shadow-neu-card: 0 4px 16px -2px rgba(0, 0, 0, 0.6), 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-neu-inset: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-neu-gold: 0 2px 14px rgba(196, 136, 77, 0.35);
+  --shadow-neu-orange: 0 2px 14px rgba(140, 83, 43, 0.4);
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+body {
+  background-color: #110b08;
+  color: #faf6f0;
+  font-family: var(--font-sans);
+  max-width: 100vw;
+  overflow-x: hidden;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, .font-display {
+  font-family: var(--font-serif);
+}
+
+/* ==========================================================================
+   COFFEE & WHITE LUXURY HOSPITALITY DESIGN SYSTEM
+   ========================================================================== */
+
+/* Clean Architectural Raised Panel (Main Containers, Modals, Section Wrappers) */
+.glass-panel, .neu-raised {
+  background: #170f0a;
+  border: 1px solid rgba(235, 212, 191, 0.12);
+  box-shadow: 0 10px 32px -4px rgba(0, 0, 0, 0.7), 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+/* Clean Tactile Cards (Table Cards, Menu Cards, Feature Tiles) */
+.glass-card, .neu-card {
+  background: #1f140e;
+  border: 1px solid rgba(235, 212, 191, 0.1);
+  box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.6), 0 1px 2px rgba(0, 0, 0, 0.3);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-card:hover, .neu-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.8), 0 2px 8px rgba(0, 0, 0, 0.4);
+  border-color: rgba(196, 136, 77, 0.45);
+}
+
+/* Luxury Opaque Navigation Bar */
+.glass-nav, .neu-nav {
+  background: #140e09;
+  border-bottom: 1px solid rgba(235, 212, 191, 0.1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+/* Form Wells, Inputs, Dropdowns */
+.glass-input, .neu-inset {
+  background: #160e09;
+  border: 1px solid rgba(235, 212, 191, 0.14);
+  color: #ffffff;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.glass-input:focus, .neu-inset:focus {
+  background: #1d120c;
+  border-color: #c4884d;
+  box-shadow: 0 0 0 2px rgba(196, 136, 77, 0.3);
+  outline: none;
+}
+
+/* Refined Secondary Button (Filters, Quick Toggles) */
+.glass-button-secondary, .neu-btn-secondary, .neu-convex {
+  background: #271a12;
+  border: 1px solid rgba(235, 212, 191, 0.15);
+  color: #f2e8dc;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition: all 0.2s ease;
+}
+
+.glass-button-secondary:hover, .neu-btn-secondary:hover, .neu-convex:hover {
+  background: #332218;
+  border-color: rgba(196, 136, 77, 0.45);
+  color: #ffffff;
+}
+
+.glass-button-secondary:active, .neu-btn-secondary:active, .neu-pressed, .neu-btn-pressed {
+  background: #150e09 !important;
+  transform: scale(0.98);
+}
+
+/* Primary Artisanal Roasted Coffee Button with Crisp White Typography */
+.neu-gold-btn, .neu-orange-btn {
+  background: linear-gradient(135deg, #8c532b 0%, #72401d 100%);
+  border: 1px solid #b87b47;
+  color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  font-weight: 700;
+  box-shadow: 0 4px 14px rgba(114, 64, 29, 0.4);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.neu-gold-btn:hover, .neu-orange-btn:hover {
+  background: linear-gradient(135deg, #9c5f34 0%, #824922 100%);
+  border-color: #d4955e;
+  color: #ffffff !important;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(114, 64, 29, 0.5);
+}
+
+.neu-gold-btn:active, .neu-orange-btn:active {
+  background: #5e3315 !important;
+  transform: scale(0.98) translateY(1px);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* Filter Strip / Control Tray */
+.neu-tray {
+  background: #150e09;
+  border: 1px solid rgba(235, 212, 191, 0.1);
+}
+
+/* Warm Accent Text */
+.gold-gradient-text, .orange-gradient-text {
+  color: #c4884d;
+}
+
+/* ==========================================================================
+   INTERACTIVE FEEDBACK
+   ========================================================================== */
+
+/* Focused Table Target Highlight */
+.table-focus-highlight {
+  outline: 2px solid #c4884d !important;
+  box-shadow: 0 0 25px rgba(196, 136, 77, 0.5) !important;
+  transform: scale(1.02) !important;
+  transition: all 0.25s ease !important;
+  z-index: 10;
+}
+
+@keyframes scaleUp {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slideLeft {
+  from { opacity: 0; transform: translateX(100%); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.animate-scale-up {
+  animation: scaleUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-slide-left {
+  animation: slideLeft 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ==========================================================================
+   SCROLLBAR
+   ========================================================================== */
+
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: #110b08;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2e1d13;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #452c1d;
+}
+
+/* ==========================================================================
+   ACCESSIBLE FOCUS RING & SELECTION
+   ========================================================================== */
+
+::selection {
+  background-color: #72401d;
+  color: #ffffff;
+}
+
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 2px solid #c4884d;
+  outline-offset: 2px;
+}
+
+/* ==========================================================================
+   RESPONSIVENESS
+   ========================================================================== */
+
+img, video, iframe, table, pre, code {
+  max-width: 100%;
+}
+
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+}

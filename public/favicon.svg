@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f4ede1" />
+      <stop offset="50%" stop-color="#e6a147" />
+      <stop offset="100%" stop-color="#bd8157" />
+    </linearGradient>
+    <linearGradient id="cupGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#321d17" />
+      <stop offset="100%" stop-color="#1c1512" />
+    </linearGradient>
+  </defs>
+  <!-- Background Glow & Circle -->
+  <rect width="64" height="64" rx="16" fill="url(#cupGrad)" stroke="url(#goldGrad)" stroke-width="2" />
+  
+  <!-- Steam Curves -->
+  <path d="M22 16 C20 22, 24 24, 22 30" stroke="url(#goldGrad)" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.8" />
+  <path d="M30 14 C28 20, 32 23, 30 29" stroke="url(#goldGrad)" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.9" />
+  <path d="M38 16 C36 22, 40 24, 38 30" stroke="url(#goldGrad)" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.8" />
+
+  <!-- Cup Body -->
+  <path d="M16 30 H44 V42 C44 48, 38 52, 30 52 C22 52, 16 48, 16 42 Z" fill="#251a15" stroke="url(#goldGrad)" stroke-width="2.5" stroke-linejoin="round" />
+  
+  <!-- Cup Handle -->
+  <path d="M44 33 H48 C51.3 33, 54 35.7, 54 39 C54 42.3, 51.3 45, 48 45 H44" stroke="url(#goldGrad)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+  
+  <!-- Saucer Base -->
+  <path d="M12 55 H48" stroke="url(#goldGrad)" stroke-width="2.5" stroke-linecap="round" />
+</svg>
