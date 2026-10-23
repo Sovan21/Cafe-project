@@ -14,20 +14,41 @@ lerna-debug.log*
 .env*
 !.env.example
 
+# Database Schemas & Migrations (Keep local, exclude from GitHub)
+*.sql
+*.sqlite
+*.sqlite3
+*.db
+
+# Certificates, Keys & Secrets
+*.pem
+*.key
+*.cert
+*.crt
+
 # Production & Build outputs
 dist
 dist-ssr
 *.local
+.turbo/
+.cache/
 
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
 .idea
 .DS_Store
+Thumbs.db
+desktop.ini
 *.suo
 *.ntvs*
 *.njsproj
+*.swp
+*.swo
+
 # Archives
 *.rar
 *.zip
+*.tar.gz
+*.7z
 "New Cafe.rar"

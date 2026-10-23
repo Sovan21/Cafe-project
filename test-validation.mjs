@@ -1564,11 +1564,38 @@ assert('Seed menu_categories uses ON CONFLICT (id) DO NOTHING',
 assert('Seed menu_items uses ON CONFLICT (id) DO NOTHING',
   /INSERT INTO menu_items[\s\S]*?ON CONFLICT \(id\) DO NOTHING;/i.test(sqlContent));
 
+// ==============================================================================
+// 28. SECURITY HARDENING: CSP HEADERS & SEND-EMAIL ORIGIN VALIDATION
+// ==============================================================================
+console.log('\n--- 28. SECURITY HARDENING: CSP HEADERS & SEND-EMAIL ORIGIN VALIDATION ---');
+
+const nextConfigPath = path.resolve('next.config.js');
+assert('next.config.js exists', fs.existsSync(nextConfigPath));
+const nextConfigContent = fs.readFileSync(nextConfigPath, 'utf8');
+assert('next.config.js enforces Content-Security-Policy', nextConfigContent.includes('Content-Security-Policy'));
+assert('next.config.js blocks unauthorized frame embedding (frame-ancestors none)', nextConfigContent.includes("frame-ancestors 'none'"));
+assert('next.config.js enforces X-Permitted-Cross-Domain-Policies none', nextConfigContent.includes('X-Permitted-Cross-Domain-Policies'));
+
+const netlifyTomlPath = path.resolve('netlify.toml');
+assert('netlify.toml exists', fs.existsSync(netlifyTomlPath));
+const netlifyTomlContent = fs.readFileSync(netlifyTomlPath, 'utf8');
+assert('netlify.toml enforces Content-Security-Policy', netlifyTomlContent.includes('Content-Security-Policy'));
+assert('netlify.toml blocks unauthorized frame embedding (frame-ancestors none)', netlifyTomlContent.includes("frame-ancestors 'none'"));
+assert('netlify.toml enforces X-Permitted-Cross-Domain-Policies none', netlifyTomlContent.includes('X-Permitted-Cross-Domain-Policies = "none"'));
+
+const sendEmailRoutePath = path.resolve('app/api/send-email/route.js');
+assert('send-email route exists', fs.existsSync(sendEmailRoutePath));
+const sendEmailRouteContent = fs.readFileSync(sendEmailRoutePath, 'utf8');
+assert('send-email route validates origin header', sendEmailRouteContent.includes("request.headers.get('origin')"));
+assert('send-email route rejects unauthorized cross-origin requests', sendEmailRouteContent.includes('Cross-origin notification dispatch is forbidden.'));
+assert('send-email route strictly parses primary client IP from x-forwarded-for', sendEmailRouteContent.includes("rawIp.split(',')[0].trim()"));
+
 console.log(`\nTEST SUMMARY: ${passed} Passed, ${failed} Failed`);
 
 if (failed > 0) {
   process.exit(1);
 }
+
 
 
 

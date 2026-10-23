@@ -54,11 +54,12 @@ const serverSupabase = isServerConfigured
 
 export async function POST(request) {
   try {
-    // 1. IP Rate Limiting Check
-    const ip =
+    // 1. IP Rate Limiting Check (Strict first client IP extraction)
+    const rawIp =
       request.headers.get('x-forwarded-for') ||
       request.headers.get('x-real-ip') ||
       'local-client';
+    const ip = rawIp.split(',')[0].trim();
     if (!checkRateLimit(ip)) {
       return NextResponse.json(
         {
@@ -67,6 +68,31 @@ export async function POST(request) {
         },
         { status: 429 }
       );
+    }
+
+    // 1b. Origin / Host Validation (Prevent Cross-Origin API abuse)
+    const origin = request.headers.get('origin');
+    const host = request.headers.get('host');
+    if (origin) {
+      try {
+        const originUrl = new URL(origin);
+        const isSameOrigin =
+          !host ||
+          originUrl.host === host ||
+          originUrl.host.startsWith('localhost') ||
+          originUrl.host.startsWith('127.0.0.1');
+        if (!isSameOrigin) {
+          return NextResponse.json(
+            { success: false, error: 'Cross-origin notification dispatch is forbidden.' },
+            { status: 403 }
+          );
+        }
+      } catch {
+        return NextResponse.json(
+          { success: false, error: 'Invalid origin header.' },
+          { status: 403 }
+        );
+      }
     }
 
     const body = await request.json();
