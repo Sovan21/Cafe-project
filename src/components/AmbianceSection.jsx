@@ -29,7 +29,7 @@ export default function AmbianceSection() {
             height="400"
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#160f0a] via-[#160f0a]/50 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#1b130e] via-[#1b130e]/50 to-transparent" />
           <div className="absolute bottom-5 left-5 right-5">
             <span className="text-[11px] uppercase tracking-wider font-bold text-gold-accent">Main Lounge & Roastery</span>
             <h4 className="font-display text-xl font-bold text-white mt-1">La Marzocco Espresso Station</h4>
@@ -45,7 +45,7 @@ export default function AmbianceSection() {
             height="400"
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#160f0a] via-[#160f0a]/50 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#1b130e] via-[#1b130e]/50 to-transparent" />
           <div className="absolute bottom-5 left-5 right-5">
             <span className="text-[11px] uppercase tracking-wider font-bold text-gold-accent">Numbered Dining Tables</span>
             <h4 className="font-display text-xl font-bold text-white mt-1">Artisanal Dining Table Seating</h4>
@@ -61,7 +61,7 @@ export default function AmbianceSection() {
             height="400"
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#160f0a] via-[#160f0a]/50 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#1b130e] via-[#1b130e]/50 to-transparent" />
           <div className="absolute bottom-5 left-5 right-5">
             <span className="text-[11px] uppercase tracking-wider font-bold text-gold-accent">Culinary Experience</span>
             <h4 className="font-display text-xl font-bold text-white mt-1">Artisan Sourdough & Specialty Brews</h4>

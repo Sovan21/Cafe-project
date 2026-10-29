@@ -11,7 +11,7 @@ export default function Footer() {
   const cleanPhone = cafeSettings.phone ? cafeSettings.phone.replace(/[\s-]/g, '') : '';
 
   return (
-    <footer id="about-section" className="bg-[#100b08] border-t border-cafe-800 text-cafe-300 text-xs relative">
+    <footer id="about-section" className="bg-[#120c08] border-t border-cafe-800 text-cafe-300 text-xs relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 sm:gap-10 mb-12">
           {/* Brand Info & Clickable Logo */}

@@ -30,7 +30,7 @@ export const viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 5,
-  themeColor: '#110b08',
+  themeColor: '#140e0a',
 };
 
 export default function RootLayout({ children }) {
@@ -46,7 +46,7 @@ export default function RootLayout({ children }) {
         />
       </head>
       <body
-        className="bg-[#110b08] text-[#faf6f0] font-sans antialiased selection:bg-cafe-600 selection:text-white min-h-screen max-w-[100vw] overflow-x-hidden"
+        className="bg-[#140e0a] text-[#faf6f0] font-sans antialiased selection:bg-cafe-600 selection:text-white min-h-screen max-w-[100vw] overflow-x-hidden"
         suppressHydrationWarning
       >
         {children}

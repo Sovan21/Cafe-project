@@ -20,7 +20,7 @@ export default function AdminPage() {
 
   return (
     <CafeProvider>
-      <div className="min-h-screen bg-[#110b08] text-[#faf6f0] flex flex-col selection:bg-cafe-600 selection:text-white">
+      <div className="min-h-screen bg-[#1c140f] text-[#faf6f0] flex flex-col selection:bg-cafe-600 selection:text-white">
         {/* Admin Dashboard Workspace */}
         <main className="flex-1 w-full max-w-7xl mx-auto p-2 sm:p-6 lg:p-8">
           {mounted ? (

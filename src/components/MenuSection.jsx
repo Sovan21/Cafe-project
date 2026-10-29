@@ -63,7 +63,7 @@ export default function MenuSection() {
                 height="400"
                 className="w-full h-full object-cover group-hover:scale-108 transition-transform duration-700 ease-out"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#1f140e] via-transparent to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#201610] via-transparent to-transparent" />
               {item.badge && (
                 <span className="absolute top-3 right-3 px-3 py-1 rounded-full neu-card text-gold-accent text-[10px] font-bold uppercase tracking-wider shadow-neu-card border border-gold-accent/30">
                   {item.badge}

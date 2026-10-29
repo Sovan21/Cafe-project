@@ -203,7 +203,7 @@ export default function ClockTimePicker({
           className="fixed inset-0 z-50 sm:absolute sm:inset-auto sm:top-full sm:mt-2 sm:left-0 sm:right-auto flex items-center justify-center sm:block p-4 sm:p-0 bg-black/60 sm:bg-transparent backdrop-blur-xs sm:backdrop-blur-none animate-scale-up"
         >
           <div
-            className="w-full max-w-[310px] sm:w-[310px] rounded-3xl neu-raised border border-cafe-700/80 bg-[#160f0a] shadow-2xl overflow-hidden p-5 text-white select-none relative"
+            className="w-full max-w-[310px] sm:w-[310px] rounded-3xl neu-raised border border-cafe-700/80 bg-[#1a120c] shadow-2xl overflow-hidden p-5 text-white select-none relative"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header / Title */}
@@ -295,7 +295,7 @@ export default function ClockTimePicker({
                   onTouchStart={onPointerDown}
                   onTouchMove={onPointerMove}
                   onTouchEnd={onPointerUp}
-                  className="w-[230px] h-[230px] rounded-full bg-[#20150d] border border-cafe-700/50 relative shadow-inner cursor-pointer touch-none select-none flex items-center justify-center"
+                  className="w-[230px] h-[230px] rounded-full bg-[#201610] border border-cafe-700/50 relative shadow-inner cursor-pointer touch-none select-none flex items-center justify-center"
                 >
                   {/* SVG Clock Hand & Center Pin */}
                   <svg className="absolute inset-0 w-full h-full pointer-events-none z-10">

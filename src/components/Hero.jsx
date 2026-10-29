@@ -75,7 +75,7 @@ export default function Hero() {
           height="1080"
           className="w-full h-full object-cover object-center scale-105"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#110b08] via-[#110b08]/85 to-[#110b08]/50" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#140e0a] via-[#140e0a]/85 to-[#140e0a]/50" />
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center mt-6">

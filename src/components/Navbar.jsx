@@ -23,7 +23,7 @@ export default function Navbar() {
   };
 
   return (
-    <header className="sticky top-0 z-40 bg-[#140e09]/95 backdrop-blur-md border-b border-cafe-800 transition-all">
+    <header className="sticky top-0 z-40 bg-[#18110c]/95 backdrop-blur-md border-b border-cafe-800 transition-all">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
         {/* Brand Logo - Clickable & Accessible */}
         <Link
@@ -102,7 +102,7 @@ export default function Navbar() {
 
       {/* Responsive Mobile Drawer Navigation */}
       {mobileMenuOpen && (
-        <div className="md:hidden bg-[#1c130d] border-b border-cafe-800 px-4 pt-3 pb-6 space-y-3 shadow-2xl">
+        <div className="md:hidden bg-[#1b130e] border-b border-cafe-800 px-4 pt-3 pb-6 space-y-3 shadow-2xl">
           <nav className="flex flex-col space-y-1 text-sm font-medium" aria-label="Mobile Navigation">
             <a
               href="#availability-map"
