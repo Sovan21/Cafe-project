@@ -250,7 +250,7 @@ export default function BookingModal() {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/85 overflow-y-auto">
       <div className="neu-raised w-full max-w-2xl rounded-2xl sm:rounded-3xl border border-cafe-700/60 shadow-neu-raised overflow-hidden my-4 sm:my-8 flex flex-col max-h-[92vh] animate-scale-up">
         {/* Modal Top Header */}
-        <div className="px-5 sm:px-6 py-4 sm:py-5 border-b border-cafe-700/60 flex items-center justify-between bg-[#18100b] flex-shrink-0">
+        <div className="px-5 sm:px-6 py-4 sm:py-5 border-b border-cafe-700/60 flex items-center justify-between bg-[#1a120c] flex-shrink-0">
           <div className="flex items-center space-x-3.5">
             <div className="w-10 h-10 rounded-2xl bg-orange-500/15 flex items-center justify-center border border-orange-500/30 text-orange-400 shadow-neu-card">
               <Coffee className="w-5 h-5" />
@@ -382,19 +382,13 @@ export default function BookingModal() {
                 ))}
               </div>
 
-              <div className="p-4 rounded-2xl bg-[#1a120f] border border-gold-accent/20">
+              <div className="p-4 rounded-2xl bg-[#1a120c] border border-gold-accent/20">
                 <div className="flex items-center gap-2 text-xs text-gold-accent font-semibold mb-1">
                   <ShieldCheck className="w-4 h-4" />
-                  <span>
-                    {cafeSettings.seating_mode === 'shared_seating'
-                      ? 'Shared Seating Policy'
-                      : 'Dedicated Table Policy'}
-                  </span>
+                  <span>Dedicated Table Policy</span>
                 </div>
                 <p className="text-xs text-cafe-300 leading-relaxed">
-                  {cafeSettings.seating_mode === 'shared_seating'
-                    ? 'Individual chair allocation active. Seating is shared comfortably among cafe guests based on exact remaining capacity.'
-                    : 'Your selected table is reserved exclusively for your party with guaranteed seating and complete dining privacy.'}
+                  Your selected table is reserved exclusively for your party with guaranteed seating and complete dining privacy.
                 </p>
               </div>
             </div>

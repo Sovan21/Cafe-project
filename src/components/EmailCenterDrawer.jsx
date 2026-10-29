@@ -40,7 +40,7 @@ export default function EmailCenterDrawer() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-end bg-black/80">
-      <div className="w-full sm:max-w-2xl h-full bg-[#140e0c] border-l border-cafe-700/60 flex flex-col shadow-2xl overflow-hidden animate-slide-left">
+      <div className="w-full sm:max-w-2xl h-full bg-[#201711] border-l border-cafe-700/60 flex flex-col shadow-2xl overflow-hidden animate-slide-left">
         {/* Drawer Header */}
         <div className="p-5 border-b border-cafe-800 flex items-center justify-between bg-cafe-950/80">
           <div className="flex items-center space-x-3">
@@ -67,7 +67,7 @@ export default function EmailCenterDrawer() {
         </div>
 
         {/* Tab Filter Strip */}
-        <div className="px-4 sm:px-5 py-3 border-b border-cafe-800/80 bg-[#19110e] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+        <div className="px-4 sm:px-5 py-3 border-b border-cafe-800/80 bg-[#251a13] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 sm:gap-2 text-xs flex-wrap">
             <button
               onClick={() => setActiveTab('all')}
@@ -160,9 +160,9 @@ export default function EmailCenterDrawer() {
 
           {/* Selected Email Detailed Realistic Preview */}
           {selectedLog ? (
-            <div className="border border-cafe-700/60 rounded-2xl bg-[#1a120f] overflow-hidden shadow-glass">
+            <div className="border border-cafe-700/60 rounded-2xl bg-[#251a13] overflow-hidden shadow-glass">
               {/* Email Client Header bar */}
-              <div className="bg-[#241a15] p-4 border-b border-cafe-700/60 space-y-2 text-xs">
+              <div className="bg-[#2c2018] p-4 border-b border-cafe-700/60 space-y-2 text-xs">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="text-cafe-400 font-semibold">From:</span>

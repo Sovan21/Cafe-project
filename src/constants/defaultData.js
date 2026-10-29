@@ -12,7 +12,7 @@ export const DEFAULT_CAFE_SETTINGS = {
   closing_time: "23:00",
   default_duration: 90, // minutes
   cleaning_buffer: 15, // minutes
-  seating_mode: "exclusive_table", // "exclusive_table" or "shared_seating"
+  seating_mode: "exclusive_table", // 100% Dedicated Table Reservation Policy
   timezone: "Asia/Kolkata",
   currency: "₹",
   instagram: "@laura.roastery",

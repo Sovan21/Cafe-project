@@ -65,6 +65,8 @@ export default function AdminDashboard({ isStandalone = false }) {
     toggleMenuItemAvailability,
     createBooking,
     getTableCurrentOccupant,
+    fetchAdminBookings,
+    clearAdminBookings,
   } = useCafe();
 
   const handleFreeTableEarly = async (bookingId, tableName) => {
@@ -113,7 +115,6 @@ export default function AdminDashboard({ isStandalone = false }) {
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [isSubmittingAuth, setIsSubmittingAuth] = useState(false);
-  const [useMagicLink, setUseMagicLink] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
 
   // Reset Layout Confirmation Modal State
@@ -217,6 +218,9 @@ export default function AdminDashboard({ isStandalone = false }) {
             } catch {
               // Graceful fallback
             }
+            if (fetchAdminBookings) {
+              await fetchAdminBookings();
+            }
           } else if (isMounted) {
             setIsAuthenticated(!isSupabaseConfigured);
             setAuthUser(null);
@@ -242,6 +246,9 @@ export default function AdminDashboard({ isStandalone = false }) {
           setIsAuthenticated(true);
           setAuthUser(session.user);
           setAuthError('');
+          if (fetchAdminBookings) {
+            await fetchAdminBookings();
+          }
         } else if (isMounted) {
           setIsAuthenticated(!isSupabaseConfigured);
           setAuthUser(null);
@@ -273,55 +280,52 @@ export default function AdminDashboard({ isStandalone = false }) {
       return;
     }
 
+    if (!authPassword) {
+      setAuthError('Please enter your administrator password.');
+      return;
+    }
+
     setIsSubmittingAuth(true);
 
     try {
-      if (useMagicLink) {
-        const { error } = await supabase.auth.signInWithOtp({
-          email: authEmail.trim(),
-        });
-        if (error) {
-          setAuthError(error.message || 'Failed to dispatch magic login link.');
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: authEmail.trim(),
+        password: authPassword,
+      });
+
+      if (error) {
+        setAuthError(error.message || 'Authentication failed. Please check your credentials.');
+      } else if (data?.user) {
+        const isAdmin = await verifyAdminStatus(data.user);
+
+        if (!isAdmin) {
+          await supabase.auth.signOut();
+          setAuthError('Access Denied: Your account does not possess verified administrator privileges.');
         } else {
-          setAuthSuccessMsg('Magic login link dispatched! Check your email inbox to sign in.');
-        }
-      } else {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: authEmail.trim(),
-          password: authPassword,
-        });
-
-        if (error) {
-          setAuthError(error.message || 'Authentication failed. Please check your credentials.');
-        } else if (data?.user) {
-          const isAdmin = await verifyAdminStatus(data.user);
-
-          if (!isAdmin) {
-            await supabase.auth.signOut();
-            setAuthError('Access Denied: Your account does not possess verified administrator privileges.');
-          } else {
-            setIsAuthenticated(true);
-            setAuthUser(data.user);
-            setAuthError('');
-            try {
-              const { data: adminSettings } = await supabase.from('cafe_settings').select('*').single();
-              if (adminSettings) {
-                setSettingsForm((prev) => ({
-                  ...prev,
-                  ...adminSettings,
-                  owner_email: adminSettings.owner_email ?? '',
-                  name: adminSettings.name ?? '',
-                  phone: adminSettings.phone ?? '',
-                  address: adminSettings.address ?? '',
-                  opening_time: adminSettings.opening_time ?? '08:00',
-                  closing_time: adminSettings.closing_time ?? '23:00',
-                  currency: adminSettings.currency ?? '₹',
-                  cleaning_buffer: adminSettings.cleaning_buffer ?? 15,
-                }));
-              }
-            } catch {
-              // Graceful fallback
+          setIsAuthenticated(true);
+          setAuthUser(data.user);
+          setAuthError('');
+          if (fetchAdminBookings) {
+            await fetchAdminBookings();
+          }
+          try {
+            const { data: adminSettings } = await supabase.from('cafe_settings').select('*').single();
+            if (adminSettings) {
+              setSettingsForm((prev) => ({
+                ...prev,
+                ...adminSettings,
+                owner_email: adminSettings.owner_email ?? '',
+                name: adminSettings.name ?? '',
+                phone: adminSettings.phone ?? '',
+                address: adminSettings.address ?? '',
+                opening_time: adminSettings.opening_time ?? '08:00',
+                closing_time: adminSettings.closing_time ?? '23:00',
+                currency: adminSettings.currency ?? '₹',
+                cleaning_buffer: adminSettings.cleaning_buffer ?? 15,
+              }));
             }
+          } catch {
+            // Graceful fallback
           }
         }
       }
@@ -346,6 +350,9 @@ export default function AdminDashboard({ isStandalone = false }) {
     setAuthPassword('');
     setAuthError('');
     setAuthSuccessMsg('');
+    if (clearAdminBookings) {
+      clearAdminBookings();
+    }
     triggerToast('Logged out of admin panel.');
   };
 
@@ -694,27 +701,6 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
             </div>
           ) : (
             <div className="my-5">
-              <div className="flex rounded-xl bg-cafe-900/80 p-1 border border-cafe-800 mb-4">
-                <button
-                  type="button"
-                  onClick={() => { setUseMagicLink(false); setAuthError(''); setAuthSuccessMsg(''); }}
-                  className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
-                    !useMagicLink ? 'neu-gold-btn' : 'text-cafe-300 hover:text-white'
-                  }`}
-                >
-                  Password Login
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setUseMagicLink(true); setAuthError(''); setAuthSuccessMsg(''); }}
-                  className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
-                    useMagicLink ? 'neu-gold-btn' : 'text-cafe-300 hover:text-white'
-                  }`}
-                >
-                  Magic Link OTP
-                </button>
-              </div>
-
               {authError && (
                 <div className="mb-4 p-3 rounded-xl bg-rose-950/50 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
                   <AlertTriangle className="w-4 h-4 flex-shrink-0" />
@@ -745,21 +731,19 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
                   />
                 </div>
 
-                {!useMagicLink && (
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-cafe-300 mb-1">
-                      Password
-                    </label>
-                    <input
-                      type="password"
-                      placeholder="••••••••••••"
-                      value={authPassword}
-                      onChange={(e) => setAuthPassword(e.target.value)}
-                      className="w-full neu-inset rounded-xl px-3.5 py-2 text-xs text-cafe-100"
-                      required
-                    />
-                  </div>
-                )}
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-cafe-300 mb-1">
+                    Password
+                  </label>
+                  <input
+                    type="password"
+                    placeholder="••••••••••••"
+                    value={authPassword}
+                    onChange={(e) => setAuthPassword(e.target.value)}
+                    className="w-full neu-inset rounded-xl px-3.5 py-2 text-xs text-cafe-100"
+                    required
+                  />
+                </div>
 
                 <div className="flex justify-end gap-2 pt-2">
                   <button
@@ -774,11 +758,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
                     disabled={isSubmittingAuth}
                     className="px-5 py-2 rounded-xl neu-gold-btn text-xs font-bold transition-all disabled:opacity-50 cursor-pointer"
                   >
-                    {isSubmittingAuth
-                      ? 'Authenticating...'
-                      : useMagicLink
-                      ? 'Send Magic Link'
-                      : 'Sign In via Supabase'}
+                    {isSubmittingAuth ? 'Authenticating...' : 'Sign In via Supabase'}
                   </button>
                 </div>
               </form>
@@ -793,7 +773,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
     <div className={isStandalone ? "w-full flex flex-col" : "fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 overflow-y-auto"}>
       <div className={isStandalone ? "w-full neu-raised rounded-3xl overflow-hidden flex flex-col" : "neu-raised w-full max-w-5xl rounded-3xl overflow-hidden my-6 flex flex-col max-h-[92vh] animate-scale-up"}>
         {/* Admin Header */}
-        <div className="px-3.5 sm:px-6 py-3 sm:py-4 border-b border-cafe-800 bg-[#160f0a] flex items-center justify-between gap-3">
+        <div className="px-3.5 sm:px-6 py-3 sm:py-4 border-b border-cafe-800 bg-[#241a13] flex items-center justify-between gap-3">
           <div className="flex items-center space-x-2.5 sm:space-x-3.5 min-w-0">
             <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-orange-500/15 border border-orange-500/40 flex items-center justify-center text-gold-accent flex-shrink-0">
               <ShieldCheck className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -850,7 +830,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
         </div>
 
         {/* Responsive Tab Navigation Bar */}
-        <div className="px-3 sm:px-6 py-2 border-b border-cafe-800 bg-[#18100b] flex items-center justify-between gap-2 text-xs">
+        <div className="px-3 sm:px-6 py-2 border-b border-cafe-800 bg-[#241a13] flex items-center justify-between gap-2 text-xs">
           <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto max-w-full pb-1 sm:pb-0 scrollbar-none py-1">
             <button
               onClick={() => setActiveTab('tables')}
@@ -1444,7 +1424,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
                   {/* Tablet & Desktop Table View (screens >= sm) */}
                   <div className="hidden sm:block overflow-x-auto rounded-2xl border border-cafe-700/60 neu-tray scrollbar-none">
                     <table className="w-full text-left text-xs text-cafe-200" style={{ minWidth: '700px' }}>
-                      <thead className="bg-[#18100b] text-[11px] font-semibold uppercase tracking-wider text-cafe-400 border-b border-cafe-700/60">
+                      <thead className="bg-[#241a13] text-[11px] font-semibold uppercase tracking-wider text-cafe-400 border-b border-cafe-700/60">
                         <tr>
                           <th className="py-3 px-4">Ref #</th>
                           <th className="py-3 px-4">Customer</th>
@@ -2315,15 +2295,12 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
                 </div>
 
                 <div>
-                  <label className="text-xs text-cafe-300 font-semibold mb-1 block">Seating Mode Policy (PRD)</label>
-                  <select
-                    value={settingsForm.seating_mode || 'exclusive_table'}
-                    onChange={(e) => setSettingsForm({ ...settingsForm, seating_mode: e.target.value })}
-                    className="w-full glass-input rounded-xl px-3 py-2 text-xs text-white cursor-pointer"
-                  >
-                    <option value="exclusive_table" className="bg-espresso text-white">Exclusive Table (Entire table reserved)</option>
-                    <option value="shared_seating" className="bg-espresso text-white">Shared Seating (Chairs allocated individually)</option>
-                  </select>
+                  <label className="text-xs text-cafe-300 font-semibold mb-1 block">Table Seating Policy</label>
+                  <div className="w-full glass-input rounded-xl px-3 py-2 text-xs text-amber-200/90 bg-amber-500/10 border border-amber-500/30 flex items-center justify-between">
+                    <span className="font-medium">Dedicated Table Reservation</span>
+                    <span className="text-[10px] bg-amber-400/20 text-amber-300 px-2 py-0.5 rounded-full font-semibold uppercase tracking-wider">100% Private</span>
+                  </div>
+                  <p className="text-[11px] text-cafe-400 mt-1">Each booking reserves the complete table privately for the customer party. Shared seating between strangers is disabled.</p>
                 </div>
 
                 <div>
@@ -2434,21 +2411,19 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
                 />
               </div>
 
-              {!useMagicLink && (
-                <div>
-                  <label className="block text-xs font-semibold text-cafe-300 mb-1">
-                    Password
-                  </label>
-                  <input
-                    type="password"
-                    placeholder="••••••••••••"
-                    value={authPassword}
-                    onChange={(e) => setAuthPassword(e.target.value)}
-                    className="w-full neu-inset rounded-xl px-3.5 py-2 text-xs text-cafe-100"
-                    required
-                  />
-                </div>
-              )}
+              <div>
+                <label className="block text-xs font-semibold text-cafe-300 mb-1">
+                  Password
+                </label>
+                <input
+                  type="password"
+                  placeholder="••••••••••••"
+                  value={authPassword}
+                  onChange={(e) => setAuthPassword(e.target.value)}
+                  className="w-full neu-inset rounded-xl px-3.5 py-2 text-xs text-cafe-100"
+                  required
+                />
+              </div>
 
               <div className="flex justify-end gap-2 pt-2">
                 <button
@@ -2480,7 +2455,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
           onClick={() => setShowResetConfirmModal(false)}
         >
           <div
-            className="neu-raised w-full max-w-lg rounded-3xl border border-rose-500/40 bg-[#160f0a] p-5 sm:p-7 shadow-2xl space-y-5 text-white"
+            className="neu-raised w-full max-w-lg rounded-3xl border border-rose-500/40 bg-[#241a13] p-5 sm:p-7 shadow-2xl space-y-5 text-white"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
@@ -2585,7 +2560,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
 
       {/* Floating Admin Toast Feedback */}
       {adminToast && (
-        <div className="fixed bottom-5 sm:bottom-6 left-1/2 -translate-x-1/2 sm:left-auto sm:right-6 sm:translate-x-0 z-[9999] flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-[#1a120c] border border-gold-accent text-white shadow-2xl animate-scale-up text-xs font-semibold whitespace-nowrap">
+        <div className="fixed bottom-5 sm:bottom-6 left-1/2 -translate-x-1/2 sm:left-auto sm:right-6 sm:translate-x-0 z-[9999] flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-[#241a13] border border-gold-accent text-white shadow-2xl animate-scale-up text-xs font-semibold whitespace-nowrap">
           <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
           <span>{adminToast}</span>
         </div>

@@ -145,18 +145,24 @@ export const CafeProvider = ({ children }) => {
       if (sSettings) setCafeSettings(JSON.parse(sSettings));
       const sTables = localStorage.getItem('laura_cafe_tables');
       if (sTables) setTables(JSON.parse(sTables));
-      const sBookings = localStorage.getItem('laura_cafe_bookings');
-      if (sBookings) {
-        const parsedBookings = JSON.parse(sBookings);
-        if (Array.isArray(parsedBookings)) {
-          const seenB = new Set();
-          const dedupedB = parsedBookings.filter((b) => {
-            if (!b?.id || seenB.has(b.id)) return false;
-            seenB.add(b.id);
-            return true;
-          });
-          setBookings(dedupedB);
+      if (!isSupabaseConfigured) {
+        const sBookings = localStorage.getItem('laura_cafe_bookings');
+        if (sBookings) {
+          const parsedBookings = JSON.parse(sBookings);
+          if (Array.isArray(parsedBookings)) {
+            const seenB = new Set();
+            const dedupedB = parsedBookings.filter((b) => {
+              if (!b?.id || seenB.has(b.id)) return false;
+              seenB.add(b.id);
+              return true;
+            });
+            setBookings(dedupedB);
+          }
         }
+      } else {
+        // Live cloud mode: strictly purge any previously cached customer reservations from public browser storage
+        localStorage.removeItem('laura_cafe_bookings');
+        localStorage.removeItem('laura_cafe_email_logs');
       }
       const sMenu = localStorage.getItem('laura_cafe_menu_items');
       if (sMenu) {
@@ -165,17 +171,19 @@ export const CafeProvider = ({ children }) => {
           setMenuItems(parsedMenu);
         }
       }
-      const sEmails = localStorage.getItem('laura_cafe_email_logs');
-      if (sEmails) {
-        const parsed = JSON.parse(sEmails);
-        if (Array.isArray(parsed)) {
-          const seenE = new Set();
-          const dedupedE = parsed.filter((item) => {
-            if (!item?.id || seenE.has(item.id)) return false;
-            seenE.add(item.id);
-            return true;
-          });
-          setEmailLogs(dedupedE);
+      if (!isSupabaseConfigured) {
+        const sEmails = localStorage.getItem('laura_cafe_email_logs');
+        if (sEmails) {
+          const parsed = JSON.parse(sEmails);
+          if (Array.isArray(parsed)) {
+            const seenE = new Set();
+            const dedupedE = parsed.filter((item) => {
+              if (!item?.id || seenE.has(item.id)) return false;
+              seenE.add(item.id);
+              return true;
+            });
+            setEmailLogs(dedupedE);
+          }
         }
       }
     } catch (e) {
@@ -206,15 +214,23 @@ export const CafeProvider = ({ children }) => {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      localStorage.setItem('laura_cafe_bookings', JSON.stringify(bookings));
+      if (!isSupabaseConfigured) {
+        localStorage.setItem('laura_cafe_bookings', JSON.stringify(bookings));
+      } else {
+        localStorage.removeItem('laura_cafe_bookings');
+      }
     }
-  }, [bookings]);
+  }, [bookings, isSupabaseConfigured]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      localStorage.setItem('laura_cafe_email_logs', JSON.stringify(emailLogs));
+      if (!isSupabaseConfigured) {
+        localStorage.setItem('laura_cafe_email_logs', JSON.stringify(emailLogs));
+      } else {
+        localStorage.removeItem('laura_cafe_email_logs');
+      }
     }
-  }, [emailLogs]);
+  }, [emailLogs, isSupabaseConfigured]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -261,33 +277,38 @@ export const CafeProvider = ({ children }) => {
       broadcastChannel.onmessage = (event) => {
         const { type, payload } = event.data || {};
         if (type === 'NEW_BOOKING') {
-          if (payload?.booking) {
+          const slot = payload?.slot || (payload?.booking ? {
+            table_id: payload.booking.table_id,
+            booking_date: payload.booking.booking_date,
+            start_time: payload.booking.start_time,
+            end_time: payload.booking.end_time,
+            guest_count: payload.booking.guest_count,
+            status: 'confirmed',
+          } : null);
+
+          if (slot?.booking_date) {
+            setBookedSlotsByDate((prev) => ({
+              ...prev,
+              [slot.booking_date]: [
+                ...(prev[slot.booking_date] || []),
+                slot,
+              ],
+            }));
+          }
+
+          // In offline demo mode (no Supabase), keep in-memory sync for demo admin
+          if (!isSupabaseConfigured && payload?.booking) {
             setBookings((prev) => {
               if (prev.some((b) => b.id === payload.booking.id)) return prev;
               return [payload.booking, ...prev];
             });
-            if (payload.booking.booking_date) {
-              setBookedSlotsByDate((prev) => ({
-                ...prev,
-                [payload.booking.booking_date]: [
-                  ...(prev[payload.booking.booking_date] || []),
-                  {
-                    table_id: payload.booking.table_id,
-                    start_time: payload.booking.start_time,
-                    end_time: payload.booking.end_time,
-                    guest_count: payload.booking.guest_count,
-                    status: 'confirmed',
-                  },
-                ],
-              }));
+            if (payload?.emailLogs && Array.isArray(payload.emailLogs)) {
+              setEmailLogs((prev) => {
+                const seenIds = new Set(prev.map((e) => e.id));
+                const uniqueLogs = payload.emailLogs.filter((e) => !seenIds.has(e.id));
+                return [...uniqueLogs, ...prev];
+              });
             }
-          }
-          if (payload?.emailLogs && Array.isArray(payload.emailLogs)) {
-            setEmailLogs((prev) => {
-              const seenIds = new Set(prev.map((e) => e.id));
-              const uniqueLogs = payload.emailLogs.filter((e) => !seenIds.has(e.id));
-              return [...uniqueLogs, ...prev];
-            });
           }
           setNewNotificationPulse(true);
         } else if (type === 'UPDATE_BOOKING_STATUS') {
@@ -337,17 +358,6 @@ export const CafeProvider = ({ children }) => {
         return viewSlots;
       }
 
-      // 3. Fallback direct select on bookings table if allowed
-      const { data: directSlots, error: dirErr } = await supabase
-        .from('bookings')
-        .select('table_id, start_time, end_time, guest_count, status')
-        .eq('booking_date', dateStr)
-        .eq('status', 'confirmed');
-      if (!dirErr && Array.isArray(directSlots)) {
-        setPublicBookedDate(dateStr);
-        setBookedSlotsByDate((prev) => ({ ...prev, [dateStr]: directSlots }));
-        return directSlots;
-      }
     } catch (err) {
       console.warn('Supabase public availability fetch error:', err);
     }
@@ -369,6 +379,33 @@ export const CafeProvider = ({ children }) => {
   useEffect(() => {
     fetchPublicBookedSlots(activeDate);
   }, [activeDate, fetchPublicBookedSlots]);
+
+  // Authoritative admin bookings fetcher (strictly requires active authenticated admin session)
+  const fetchAdminBookings = useCallback(async () => {
+    if (!isSupabaseConfigured || !supabase) return [];
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData?.session?.user) return [];
+
+      const { data: dbBookings, error: bErr } = await supabase
+        .from('bookings')
+        .select('*')
+        .order('booking_date', { ascending: false })
+        .order('start_time', { ascending: false });
+      if (!bErr && Array.isArray(dbBookings)) {
+        setBookings(dbBookings);
+        return dbBookings;
+      }
+    } catch (err) {
+      console.warn('Admin bookings fetch error:', err);
+    }
+    return [];
+  }, []);
+
+  const clearAdminBookings = useCallback(() => {
+    setBookings([]);
+    setEmailLogs([]);
+  }, []);
 
   // 3. Supabase Realtime Subscription & Live Cloud Hydration (Mount Once)
   useEffect(() => {
@@ -401,20 +438,10 @@ export const CafeProvider = ({ children }) => {
           setCafeSettings((prev) => ({ ...prev, ...pubSettings }));
         }
 
-        // 4. Public booked slots for initial active date
+        // 4. Public booked slots for initial active date (ZERO customer PII)
         await fetchPublicBookedSlots(activeDateRef.current);
 
-        // 5. Cloud bookings for management (if authorized)
-        const { data: dbBookings, error: bErr } = await supabase
-          .from('bookings')
-          .select('*')
-          .order('booking_date', { ascending: false })
-          .order('start_time', { ascending: false });
-        if (!bErr && dbBookings && dbBookings.length > 0) {
-          setBookings(dbBookings);
-        }
-
-        // 6. Check admin session if authenticated
+        // 5. Check admin session if authenticated (Customer PII is ONLY fetched if an admin is logged in)
         const { data: sessionData } = await supabase.auth.getSession();
         if (sessionData?.session?.user) {
           const { data: adminSettings } = await supabase.from('cafe_settings').select('*').single();
@@ -424,6 +451,7 @@ export const CafeProvider = ({ children }) => {
               owner_email: adminSettings.owner_email ?? '',
             });
           }
+          await fetchAdminBookings();
         }
       } catch (err) {
         console.warn('Supabase fetch error, using hybrid local cache:', err);
@@ -438,7 +466,7 @@ export const CafeProvider = ({ children }) => {
         config: { broadcast: { self: false } },
       })
       .on('broadcast', { event: 'cafe_activity' }, async (event) => {
-        const { type, booking, id, status, date, tables: updatedTables, menuItems: updatedMenu } = event.payload || {};
+        const { type, slot, id, status, date, tables: updatedTables, menuItems: updatedMenu } = event.payload || {};
         if (date) {
           fetchPublicBookedSlots(date);
         }
@@ -446,39 +474,44 @@ export const CafeProvider = ({ children }) => {
           fetchPublicBookedSlots(activeDateRef.current);
         }
 
-        if (type === 'NEW_BOOKING' && booking) {
-          setBookings((prev) => {
-            if (prev.some((b) => b.id === booking.id)) return prev;
-            return [booking, ...prev];
-          });
-          if (booking.booking_date) {
+        if (type === 'NEW_BOOKING' && slot) {
+          if (slot.booking_date) {
             setBookedSlotsByDate((prev) => ({
               ...prev,
-              [booking.booking_date]: [
-                ...(prev[booking.booking_date] || []),
-                {
-                  table_id: booking.table_id,
-                  start_time: booking.start_time,
-                  end_time: booking.end_time,
-                  guest_count: booking.guest_count,
-                  status: 'confirmed',
-                },
+              [slot.booking_date]: [
+                ...(prev[slot.booking_date] || []),
+                slot,
               ],
             }));
           }
-          setNewNotificationPulse(true);
+          // Only authenticated admin should hydrate full bookings
+          const { data: sData } = await supabase.auth.getSession();
+          if (sData?.session?.user) {
+            fetchAdminBookings();
+            setNewNotificationPulse(true);
+          }
         } else if (type === 'UPDATE_BOOKING_STATUS' && id && status) {
-          setBookings((prev) =>
-            prev.map((b) => (b.id === id ? { ...b, status } : b))
-          );
+          const { data: sData } = await supabase.auth.getSession();
+          if (sData?.session?.user) {
+            setBookings((prev) =>
+              prev.map((b) => (b.id === id ? { ...b, status } : b))
+            );
+          }
         } else if (type === 'UPDATE_TABLES' && updatedTables) {
           setTables(updatedTables);
         } else if (type === 'UPDATE_MENU_ITEMS' && updatedMenu) {
           setMenuItems(updatedMenu);
         }
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, (payload) => {
-        fetchPublicBookedSlots(activeDateRef.current);
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, async (payload) => {
+        // 1. Always refresh public availability slots (ZERO customer PII)
+        if (activeDateRef.current) {
+          fetchPublicBookedSlots(activeDateRef.current);
+        }
+
+        // 2. Only update administrative full bookings if an authenticated user session is active
+        const { data: sData } = await supabase.auth.getSession();
+        if (!sData?.session?.user) return;
 
         if (payload.eventType === 'INSERT') {
           setBookings((prev) => [payload.new, ...prev.filter((b) => b.id !== payload.new.id)]);
@@ -521,7 +554,6 @@ export const CafeProvider = ({ children }) => {
       const startMin = timeToMinutes(targetStartTime);
       const endMin = startMin + targetDurationMinutes;
       const buffer = cafeSettings.cleaning_buffer || 15;
-      const seatingMode = cafeSettings.seating_mode || 'exclusive_table'; // 'exclusive_table' or 'shared_seating'
 
       // Check operating hours
       const openMin = timeToMinutes(cafeSettings.opening_time || '08:00');
@@ -615,41 +647,7 @@ export const CafeProvider = ({ children }) => {
 
         const activeBooking = overlappingBookings[0] || null;
 
-        if (seatingMode === 'shared_seating') {
-          // PRD FR-05 / Section 5: Shared seating calculates occupied chairs vs remaining chairs
-          const occupiedSeats = overlappingBookings.reduce(
-            (acc, curr) => acc + (Number(curr.guest_count) || 1),
-            0
-          );
-          const remainingSeats = Math.max(0, table.capacity - occupiedSeats);
-          const capacityFit = targetGuests ? remainingSeats >= targetGuests : remainingSeats > 0;
-          const isReserved = remainingSeats === 0;
-          const isPartiallyAvailable = occupiedSeats > 0 && remainingSeats > 0;
-          const isAvailable = capacityFit && remainingSeats > 0;
-
-          let reason = 'Available';
-          if (remainingSeats === 0) {
-            reason = `All ${table.capacity} Seats Reserved`;
-          } else if (isPartiallyAvailable) {
-            reason = `${remainingSeats} of ${table.capacity} Seats Free`;
-          } else if (!capacityFit) {
-            reason = `Only ${remainingSeats} Seats Available (Party needs ${targetGuests})`;
-          }
-
-          return {
-            table,
-            isAvailable,
-            isReserved,
-            isPartiallyAvailable,
-            isMaintenance: false,
-            isCapacityFit: capacityFit,
-            remainingSeats,
-            occupiedSeats,
-            reason,
-            activeBooking,
-            overlappingBookings,
-          };
-        }
+        // Dedicated Table Policy: Any active overlapping booking reserves the entire table
 
         // Exclusive Table Mode (Default): Any active overlapping booking reserves the entire table
         const isReserved = Boolean(activeBooking);
@@ -680,7 +678,7 @@ export const CafeProvider = ({ children }) => {
         };
       });
     },
-    [tables, bookings, bookedSlotsByDate, cafeSettings.cleaning_buffer, cafeSettings.seating_mode, cafeSettings.opening_time, cafeSettings.closing_time]
+    [tables, bookings, bookedSlotsByDate, cafeSettings.cleaning_buffer, cafeSettings.opening_time, cafeSettings.closing_time]
   );
 
   // Live computed availability for current filter bar values
@@ -760,7 +758,6 @@ export const CafeProvider = ({ children }) => {
     const startMin = timeToMinutes(start_time);
     const endMin = startMin + duration_minutes;
     const end_time = schedCheck.endTime;
-    const seatingMode = cafeSettings.seating_mode || 'exclusive_table';
     const buffer = cafeSettings.cleaning_buffer || 15;
 
     // 1. Fresh pre-flight check from Supabase RPC get_public_booked_slots for zero race-window
@@ -816,23 +813,12 @@ export const CafeProvider = ({ children }) => {
       return startMin < bEndBuffered && endMin > bStartBuffered;
     });
 
-    if (seatingMode === 'exclusive_table' && overlapping.length > 0) {
+    if (overlapping.length > 0) {
       const activeConf = overlapping[0];
       return {
         success: false,
         error: `Simultaneous Booking Conflict! Table ${targetTable.name} is already reserved for this time slot (${formatTime12h(activeConf.start_time)} - ${formatTime12h(activeConf.end_time)}). Please choose another table or time.`,
       };
-    }
-
-    if (seatingMode === 'shared_seating') {
-      const occupied = overlapping.reduce((acc, curr) => acc + (Number(curr.guest_count) || 1), 0);
-      const remaining = targetTable.capacity - occupied;
-      if (guestCheck.value > remaining) {
-        return {
-          success: false,
-          error: `Table ${targetTable.name} only has ${remaining} seats left for this time slot (${guestCheck.value} guests requested).`,
-        };
-      }
     }
 
     // Generate collision-resistant booking reference
@@ -1051,10 +1037,17 @@ export const CafeProvider = ({ children }) => {
 
     dispatchNotifications();
 
-    // Broadcast update to all other open tabs and remote devices via Supabase Realtime
+    // Broadcast availability update to all other open tabs and remote devices via Supabase Realtime
+    // Customer PII is strictly stripped from public broadcast payloads
     broadcastRealtimeActivity('NEW_BOOKING', {
-      booking: newBooking,
-      emailLogs: newLogs,
+      slot: {
+        table_id: newBooking.table_id,
+        booking_date: newBooking.booking_date,
+        start_time: newBooking.start_time,
+        end_time: newBooking.end_time,
+        guest_count: newBooking.guest_count,
+        status: 'confirmed',
+      },
       date: newBooking.booking_date,
     });
 
@@ -1603,6 +1596,8 @@ export const CafeProvider = ({ children }) => {
         setLatestEmailPayload,
         newNotificationPulse,
         setNewNotificationPulse,
+        fetchAdminBookings,
+        clearAdminBookings,
         isSupabaseConfigured,
       }}
     >

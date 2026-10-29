@@ -53,13 +53,10 @@ export default function LiveTableMap() {
       // 1. Available tables come first
       if (a.isAvailable && !b.isAvailable) return -1;
       if (!a.isAvailable && b.isAvailable) return 1;
-      // 2. Partially available next
-      if (a.isPartiallyAvailable && !b.isPartiallyAvailable) return -1;
-      if (!a.isPartiallyAvailable && b.isPartiallyAvailable) return 1;
-      // 3. Active before maintenance
+      // 2. Active before maintenance
       if (!a.isMaintenance && b.isMaintenance) return -1;
       if (a.isMaintenance && !b.isMaintenance) return 1;
-      // 4. By table id order
+      // 3. By table id order
       return a.table.id.localeCompare(b.table.id);
     });
   }, [currentTableAvailability]);
@@ -218,7 +215,7 @@ export default function LiveTableMap() {
 
       {/* Tables Grid */}
       <div id="tables-grid" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 scroll-mt-24">
-        {displayTables.map(({ table, isAvailable, isReserved, isPartiallyAvailable, isMaintenance, isCapacityFit, remainingSeats, occupiedSeats, reason, activeBooking }) => {
+        {displayTables.map(({ table, isAvailable, isReserved, isMaintenance, isCapacityFit, remainingSeats, occupiedSeats, reason, activeBooking }) => {
           return (
             <div
               key={table.id}
@@ -228,8 +225,6 @@ export default function LiveTableMap() {
               className={`glass-card p-5 rounded-2xl relative flex flex-col justify-between overflow-hidden border transition-all scroll-mt-28 ${
                 isAvailable
                   ? 'border-emerald-500/30 hover:border-emerald-400/60 hover:shadow-[0_0_20px_rgba(34,197,94,0.15)]'
-                  : isPartiallyAvailable
-                  ? 'border-orange-500/40 bg-orange-950/20'
                   : isReserved
                   ? 'border-rose-500/30 bg-rose-950/10'
                   : isMaintenance
@@ -257,8 +252,6 @@ export default function LiveTableMap() {
                     className={`text-[11px] font-semibold px-2.5 py-1 rounded-full uppercase tracking-wider inline-flex items-center gap-1 ${
                       isAvailable
                         ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                        : isPartiallyAvailable
-                        ? 'bg-orange-500/20 text-orange-300 border border-orange-500/40'
                         : isReserved
                         ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
                         : isMaintenance
@@ -269,10 +262,6 @@ export default function LiveTableMap() {
                     {isAvailable ? (
                       <>
                         <CheckCircle className="w-3 h-3" /> Available
-                      </>
-                    ) : isPartiallyAvailable ? (
-                      <>
-                        <Clock className="w-3 h-3" /> Shared ({remainingSeats} Free)
                       </>
                     ) : isReserved ? (
                       <>
@@ -299,11 +288,9 @@ export default function LiveTableMap() {
                     </span>
                     <span className="font-mono text-[11px] text-cafe-400">
                       {isAvailable
-                        ? `${remainingSeats ?? table.capacity} / ${table.capacity} Available`
-                        : isPartiallyAvailable
-                        ? `${remainingSeats} Free • ${occupiedSeats} Taken`
+                        ? `${table.capacity} / ${table.capacity} Available`
                         : isReserved
-                        ? `${occupiedSeats || table.capacity} Occupied`
+                        ? 'Reserved (0 Available)'
                         : '0 Available'}
                     </span>
                   </div>
@@ -338,17 +325,12 @@ export default function LiveTableMap() {
                 <div className="text-xs mb-4 min-h-[38px] flex items-center">
                   {isAvailable && (
                     <p className="text-emerald-400 text-[11px] font-medium">
-                      Table is available for your selected time window.
+                      Table is completely available for your selected time window.
                     </p>
-                  )}
-                  {isPartiallyAvailable && (
-                    <div className="text-orange-200 text-[11px] bg-orange-950/50 p-2 rounded-lg border border-orange-500/30 w-full">
-                      <strong>Shared Seating:</strong> {remainingSeats} seats available for your party.
-                    </div>
                   )}
                   {isReserved && (
                     <div className="text-rose-300 text-[11px] bg-rose-950/40 p-2 rounded-lg border border-rose-500/20 w-full">
-                      <strong>Reserved:</strong> {formatTime12h(activeBooking?.start_time)} to {formatTime12h(activeBooking?.end_time)} ({activeBooking?.guest_count || table.capacity} guests)
+                      <strong>Reserved:</strong> {formatTime12h(activeBooking?.start_time)} to {formatTime12h(activeBooking?.end_time)}
                     </div>
                   )}
                   {isMaintenance && (
