@@ -1,238 +1,165 @@
 # System Architecture
 
-**Project:** Demo Café Website & Real-Time Table Booking  
-**Version:** 1.0  
-**Status:** Proposed architecture; verify against the existing prototype before implementation.
+**Project:** L'Aura Cafe & Artisanal Roastery  
+**Version:** 2.0 (Production-Hardened)  
+**Status:** Active System Architecture  
 
-## 1. Architecture principles
+---
 
-- Keep the public site fast and mobile-first.
-- Treat the database/server as the authority for booking and capacity, never the browser.
-- Keep personal booking data private; publish only the minimum information required to display cafe details and availability.
-- Validate and assign capacity in one atomic database transaction.
-- Separate booking success from email-delivery success.
-- Reuse an existing working framework where practical. Do not rewrite the project just to match this document.
+## 1. Architectural Principles
 
-## 2. High-level architecture
+- **Zero Client-Side Secrets**: Privileged secrets (`SUPABASE_SERVICE_ROLE_KEY`, `GMAIL_APP_PASSWORD`) are strictly confined to server-side environments. The frontend client only possesses the public Supabase anon key.
+- **Authoritative Database Integrity**: Table availability and booking allocations are calculated and enforced inside atomic PostgreSQL transactions, never trusted to browser calculations.
+- **Zero Customer PII Exposure**: Anonymous visitors and customer browsers cannot query customer names, emails, phone numbers, or notes from the database. Availability queries use privacy-preserving views and RPCs.
+- **Dedicated Table Policy**: All cafe bookings are 100% exclusive table reservations. Shared seating between strangers is completely eliminated.
+- **Decoupled Notification Pipeline**: Booking creation is completely decoupled from SMTP email delivery. Email failures never roll back or invalidate a successfully committed reservation.
+- **Resilient Realtime Synchronization**: Hybrid synchronization combining Supabase Postgres Changes with browser multi-tab `BroadcastChannel` ensures immediate UI updates across tabs and devices.
+
+---
+
+## 2. High-Level Architecture Diagram
 
 ```mermaid
 flowchart TD
-    C[Customer Browser] -->|HTTPS| FE[Next.js App on Netlify]
-    A[Owner Browser] -->|HTTPS + Auth| FE
-    FE -->|Public cafe/menu + availability query| SB[Supabase API]
-    FE -->|Booking request| EF[Supabase Edge Function]
-    EF -->|Transactional RPC| DB[(Supabase PostgreSQL)]
-    DB -->|Safe availability-change event| RT[Supabase Realtime]
-    RT -->|Change signal; no customer PII| FE
-    EF -->|Server-side API request| MAIL[Email Provider / SMTP API]
-    EF -->|Notification outcome| DB
+    subgraph ClientLayer ["Client Devices (Mobile / Tablet / Desktop)"]
+        CB[Customer Browser]
+        AB[Admin / Owner Browser]
+        BC[BroadcastChannel: laura_cafe_realtime_sync]
+        CB <--> BC
+        AB <--> BC
+    end
+
+    subgraph HostingLayer ["Next.js App Server (Netlify / Node.js)"]
+        APP[Next.js 16 App Router UI]
+        DEV[devserver.js: LAN IPv4 Wi-Fi Launcher]
+        API["API Route: /api/send-email\n(Rate Limited, Origin Verified)"]
+    end
+
+    subgraph SupabaseLayer ["Supabase Managed Backend (PostgreSQL)"]
+        PUB_VIEW[View: public_booked_slots]
+        SET_VIEW[View: public_cafe_settings]
+        RPC_BOOK[Function: book_table_atomic]
+        RPC_SLOTS[Function: get_public_booked_slots]
+        RPC_CLAIMS[Functions: claim_notification_dispatch & record_notification_result]
+        RPC_AUTO[Function: auto_complete_expired_bookings]
+        RT[Supabase Realtime Channel: bookings]
+        DB[(Tables: cafe_tables, bookings, cafe_settings, notification_claims, email_logs)]
+    end
+
+    subgraph EmailLayer ["Transactional Email Provider"]
+        SMTP[Gmail SMTP via Nodemailer]
+    end
+
+    CB -->|HTTPS Public Browsing| APP
+    AB -->|HTTPS + Supabase Auth| APP
+    APP -->|Public Availability Query - No PII| RPC_SLOTS
+    RPC_SLOTS --> PUB_VIEW
+    APP -->|Atomic Reservation Request| RPC_BOOK
+    RPC_BOOK -->|Exclusive Lock & Insert| DB
+    DB -->|Postgres Changes| RT
+    RT -->|Availability Change Signal| CB
+    RT -->|Availability Change Signal| AB
+    APP -->|POST Claim & Dispatch| API
+    API -->|Claim Lock (service_role)| RPC_CLAIMS
+    API -->|Send Transactional Emails| SMTP
+    API -->|Record Result (service_role)| RPC_CLAIMS
 ```
 
-## 3. Recommended technology stack
+---
 
-First inspect `package.json`, source folders, and current deployment config. If the prototype already uses a stable stack, retain it unless there is a concrete blocker.
+## 3. Technology Stack & Runtime Specifications
 
-For a new implementation:
+| Layer | Technology | Version | Purpose & Configuration |
+|---|---|---|---|
+| **Framework** | Next.js (App Router) | `16.4.2` | Server & client rendering, `/api/send-email` route handler, metadata |
+| **UI Library** | React | `19.3.1` | Component lifecycle, state management, concurrent rendering |
+| **Development** | Turbopack / Next Dev | Built-in | Fast HMR dev server launched via `devserver.js` with local LAN IP resolution |
+| **Styling** | Tailwind CSS + PostCSS | `v4.3.3` | `@tailwindcss/postcss` with global `@import "tailwindcss"`, CSS variables |
+| **Icons & Media** | Lucide React | `^1.16.0` | Feather-style icons, responsive SVG rendering |
+| **Database** | Supabase (PostgreSQL 15+) | Cloud | Managed relational database, RLS policies, PL/pgSQL atomic RPCs |
+| **Auth** | Supabase Auth (GoTrue) | Cloud | Admin authentication with email/password session tokens |
+| **Realtime** | Supabase Realtime | Cloud | WebSocket postgres_changes events on the `bookings` table |
+| **Inter-Tab Sync**| BroadcastChannel API | Native Browser | Instant zero-latency state sync across tabs (`laura_cafe_realtime_sync`) |
+| **Email Service**| Nodemailer + Gmail SMTP | `^8.3.0` | Server-only transactional email delivery with custom HTML styling |
+| **Deployment** | Netlify / Node.js Host | Production | Static assets, SSR endpoints, CSP security headers via `netlify.toml` |
 
-| Layer | Recommendation | Responsibility |
-|---|---|---|
-| Frontend | Existing Next.js application (JavaScript unless the repository proves otherwise) | Public cafe page, booking flow, admin UI; preserve the existing App Router or Pages Router |
-| Styling | Tailwind CSS v4.x (exact installed patch version must be verified in `package.json`/lockfile) | Responsive UI and design tokens; use the Next.js/PostCSS integration, not the Vite plugin |
-| Database | Supabase PostgreSQL | Cafe configuration, inventory, bookings, menus, logs |
-| Authentication | Supabase Auth | Owner sign-in |
-| Realtime | Supabase Realtime on a safe change-signal table/channel | Inform browsers to re-fetch availability |
-| Booking API | Server-side API Route / Supabase RPC | Trusted validation, assignment, conflict control |
-| Email | Google/Gmail SMTP via Nodemailer (server-only endpoint) | Customer/owner notification |
-| Frontend hosting | Netlify | Preview and deployed website |
-| Version control | Git + GitHub | Source history and deployment integration |
+---
 
-GitHub Pages can host static files, but it does not provide the server-side booking transaction or secret email API execution. Keep the backend on Supabase regardless of the frontend host.
+## 4. Local Development Launcher (`devserver.js`)
 
-## 3A. Existing local development launcher (important)
+The project includes an intelligent launcher script `devserver.js`:
+- Uses Node.js `child_process.spawn` to launch Next.js (`node_modules/next/dist/bin/next dev --hostname 0.0.0.0`).
+- Automatically scans network interfaces (Wi-Fi, Ethernet) to discover the local LAN IPv4 address (e.g. `192.168.1.X`).
+- Dynamically rewrites Next.js terminal output so developers can test on physical mobile devices connected to the same Wi-Fi network without manual configuration.
 
-The user-provided Node.js script uses `child_process.spawn` to run `node_modules/next/dist/bin/next dev --hostname 0.0.0.0`, then rewrites the displayed `0.0.0.0` address in stdout to a detected local IPv4 address. This confirms that the project uses Next.js for local development; it does **not** indicate that Vite is in use, and the wrapper itself is not an Express/API backend.
+---
 
-Rules for assistants working on this project:
-- Inspect `package.json`, the exact launcher filename, and npm scripts before changing startup behavior.
-- Preserve the existing launcher and its LAN-access behavior unless the user explicitly asks to change it or a reproducible issue requires a change.
-- Do not install/configure Vite or add `@tailwindcss/vite`.
-- This script starts `next dev`, which is development-only. Do not use it as the production deployment command. Use the existing deployment platform's supported Next.js build/runtime flow.
-- Tailwind CSS v4's standard Next.js setup uses the `@tailwindcss/postcss` PostCSS plugin and `@import "tailwindcss"` in the global stylesheet. Inspect current files first; do not blindly overwrite existing config. Official guide: https://tailwindcss.com/docs/installation/framework-guides/nextjs
+## 5. Master SQL Architecture (`supabase-fresh-install.sql`)
 
-## 4. Suggested repository layout
+All database structure is consolidated into a single authoritative master SQL file (`supabase-fresh-install.sql`), organized into 12 structured sections in strict dependency order:
 
-Adapt to the existing repository rather than forcing a reorganization.
+1. **Table Definitions**: `admin_users`, `cafe_settings`, `cafe_tables`, `menu_categories`, `menu_items`, `bookings`, `notification_claims`, `email_logs`.
+2. **Performance Indexes**: B-tree indexes on `(booking_date, status, table_id)`, `(table_id, booking_date)`, and timestamps.
+3. **Admin Verification Function (`is_admin`)**: Validates `auth.uid()` against verified entries in `admin_users` (never grants privileges by client email alone).
+4. **Row Level Security (RLS)**: Enforces table-level isolation across all 8 tables.
+5. **Atomic Booking RPC (`book_table_atomic`)**:
+   - Acquires deterministic row locks (`SELECT id FROM cafe_tables WHERE id = p_table_id FOR UPDATE`).
+   - Converts timestamps to cafe timezone (`Asia/Kolkata`).
+   - Handles overnight post-midnight operating hours.
+   - Enforces the **Dedicated Table Policy** (rejects any overlapping booking within `[start_time, end_time + cleaning_buffer]`).
+   - Enforces physical table capacity (`p_guest_count <= table.capacity`).
+   - Inserts confirmed booking and returns JSON result.
+6. **Auto-Complete Expired Bookings (`auto_complete_expired_bookings`)**:
+   - Automatically transitions confirmed bookings past their grace period (`end_time + 15 mins`) to `completed`.
+7. **Two-Phase Notification Claims**:
+   - `claim_notification_dispatch(p_booking_id)`: Atomically locks a pending email claim to prevent duplicate delivery.
+   - `record_notification_result(...)`: Updates delivery status, provider message IDs, retry counters, and logs in `email_logs`.
+8. **Privacy-Preserving Public Views**:
+   - `public_booked_slots`: Exposes only `(booking_date, start_time, end_time, table_id, status)` for availability calculation. Completely omits customer names, emails, and phone numbers.
+   - `public_cafe_settings`: Exposes public cafe details while completely omitting `owner_email` and internal flags.
+9. **Public Availability RPC (`get_public_booked_slots`)**:
+   - Allows anonymous clients to fetch booked intervals for a target date without exposing private data.
+10. **Public Settings RPC (`get_public_cafe_settings`)**:
+    - Returns safe public cafe metadata.
+11. **Least-Privilege Security Grants & Revokes**:
+    - Revokes direct SELECT/INSERT on `cafe_settings`, `bookings`, `notification_claims`, and `email_logs` from `anon` and `PUBLIC`.
+    - Revokes internal functions (`claim_notification_dispatch`, `record_notification_result`) from client access; grants exclusively to `service_role`.
+12. **Idempotent Seed Data**: Inserts default tables (`T01`–`T08`), menu categories, menu items, and initial settings using `ON CONFLICT (id) DO NOTHING`.
 
-```text
-cafe-booking/
-├── docs/
-│   ├── PRD.md
-│   ├── ARCHITECTURE.md
-│   ├── RULES.md
-│   ├── DESIGN.md
-│   ├── TASKS.md
-│   └── MEMORY.md
-├── public/
-│   └── demo-assets/
-├── src/
-│   ├── app/ or pages/       # Keep the router pattern already used by this Next.js project
-│   ├── components/          # Reusable UI components
-│   ├── features/
-│   │   ├── availability/
-│   │   ├── booking/
-│   │   ├── menu/
-│   │   └── admin/
-│   ├── lib/                 # Supabase client and shared utilities
-│   ├── services/             # Typed calls to backend functions
-│   ├── types/
-│   └── styles/
-├── supabase/
-│   ├── migrations/
-│   └── functions/
-│       ├── create-booking/
-│       ├── cancel-booking/
-│       └── send-booking-notifications/
-├── tests/
-├── [existing Next.js dev launcher].js  # Preserve actual filename; launches `next dev`
-├── postcss.config.mjs                    # Only if this is the current Tailwind v4 config format
-├── .env.example
-├── .gitignore
-└── package.json
-```
+---
 
-## 5. Data model
+## 6. Realtime Availability & Synchronization Flow
 
-Use migrations for schema changes. Names and types can be adapted to an existing database, but preserve the underlying invariants.
+1. **Public Availability Calculation**:
+   - When the user selects a Date, Time, Duration, and Party Size, the frontend calls `calculateTableAvailability`.
+   - The engine queries `get_public_booked_slots(targetDate)`.
+   - Dedicated table rule: If any confirmed booking overlaps with `[start_time, end_time + cleaning_buffer]`, the table is marked as **Reserved** (0 seats available).
+   - If no overlap exists and `table.capacity >= party_size`, the table is marked as **Available**.
+2. **Supabase Realtime**:
+   - The app subscribes to `postgres_changes` on `schema: public, table: bookings`.
+   - When any booking is inserted, confirmed, or cancelled, a lightweight event triggers a background refresh of `get_public_booked_slots`.
+3. **Multi-Tab BroadcastChannel**:
+   - `new BroadcastChannel('laura_cafe_realtime_sync')` broadcasts reservation events across all open browser tabs on the same origin, ensuring 0ms latency sync without waiting for network round-trips.
 
-### `cafe_settings`
+---
 
-- `id` (singleton or stable UUID primary key)
-- `cafe_name`, `logo_url`, `description`
-- `public_address`, `landmark`, `public_phone`, `whatsapp_phone`, `map_url`
-- `owner_email` (private; do not expose in public settings payload)
-- `timezone` (default `Asia/Kolkata`)
-- `opening_hours` (structured JSON or normalized hours table)
-- `default_duration_minutes`, `allowed_duration_minutes`, `cleaning_buffer_minutes`
-- `seating_mode` (`shared_seating` or `exclusive_table`)
-- `is_demo`
-- `updated_at`
+## 7. Email Notification Architecture (`/api/send-email`)
 
-### `cafe_tables`
+- **Server-Side Route**: Next.js App Router route handler at `src/app/api/send-email/route.js`.
+- **Zero Client Secrets**: Uses server environment variables `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` (e.g. Gmail App Password), and `SUPABASE_SERVICE_ROLE_KEY`.
+- **Origin Validation**: Rejects requests where the `Origin` or `Referer` header does not match the configured host or local development origin.
+- **In-Memory Rate Limiting**: Enforces a strict sliding window limit of 10 requests per minute per IP address.
+- **Two-Phase Idempotent Claims**:
+  1. Calls `supabase.rpc('claim_notification_dispatch')` using `service_role`. If a claim is already pending or submitted, prevents duplicate email dispatch.
+  2. Dispatches branded HTML customer confirmation and owner notification via Nodemailer.
+  3. Calls `supabase.rpc('record_notification_result')` to transition claim status to `submitted` or `failed` (for safe retries) and records audit entries in `email_logs`.
 
-- `id` UUID primary key
-- `table_code` unique human-readable code (e.g. `T01`)
-- `chair_capacity` integer greater than zero
-- `is_active` boolean
-- `is_out_of_service` boolean
-- optional `display_order`, `zone`, and `notes`
-- timestamps
+---
 
-### `menu_categories` and `menu_items`
+## 8. Security & Compliance Architecture
 
-Menu category includes name, sort order, and active state. A menu item includes category ID, name, description, price, currency (INR for this project), image URL, active state, and timestamps. Only active menu records are public.
-
-### `bookings`
-
-- `id` UUID primary key and a non-guessable/public-safe `booking_reference`
-- `customer_name`, `customer_email`, optional `customer_phone`
-- `party_size` positive integer
-- `start_at`, `end_at` timestamps (store consistently; use UTC in DB)
-- `status` (`confirmed`, `cancelled`, `completed`, `no_show`)
-- `seating_mode_snapshot` for audit/debugging if useful
-- `created_at`, `updated_at`, optional cancellation metadata
-
-### `booking_tables`
-
-- `booking_id` foreign key
-- `table_id` foreign key
-- `seats_allocated` positive integer
-- primary key or unique constraint on (`booking_id`, `table_id`)
-
-This join table supports a booking assigned to more than one table, and supports chair-level capacity tracking when shared seating is enabled.
-
-### `availability_events`
-
-A safe signal table for realtime subscriptions. It should contain only an event ID, timestamp, and minimal inventory scope (for example, affected table IDs); never customer name, email, phone, booking reference, or free-form customer data. On receiving a signal, a client calls the trusted availability query again for its selected time range.
-
-### `email_logs`
-
-- `id`, `booking_id`, `recipient_type` (`customer`/`owner`), recipient address (private), provider, status, provider message ID (if available), attempt count, sanitized error, timestamps
-- Read/write access restricted to authorized server-side operations and owners.
-
-## 6. Booking and availability algorithms
-
-### Availability query
-
-Input: date/start time, duration, party size, desired table count or auto-select, cafe timezone. Validate input and opening hours. Determine `[start_at, end_at)` using the cafe timezone, then convert to database timestamps. Exclude inactive/out-of-service tables.
-
-For every candidate table, calculate active overlapping allocations:
-
-- `overlap`: existing `start_at < requested_end` and existing `end_at > requested_start`, excluding cancelled/completed bookings as defined by policy.
-- In `shared_seating` mode, remaining seats = chair capacity minus seats allocated by all overlapping active bookings. A table is eligible if it has at least one free seat. A group may be assigned to one or multiple eligible tables if the combined allocated seats meet party size and requested table count.
-- In `exclusive_table` mode, any overlapping active booking makes that table unavailable for the entire requested interval. Do not present remaining physical chairs as independently bookable on an occupied table.
-- Include an optional cleaning buffer by expanding the conflict interval at the policy layer. Document whether the buffer applies before and/or after bookings.
-
-The availability response must contain only public-safe values such as table code, chair capacity, seats remaining, available/partial/unavailable state, and safe descriptive metadata.
-
-### Atomic booking creation
-
-The client submits one request to an Edge Function; it does not insert directly into `bookings`.
-
-1. Validate required fields, email format, party size, date/time, duration, desired table count, and idempotency key.
-2. Call a PostgreSQL RPC (e.g. `create_booking_atomic`) that runs inside one transaction.
-3. Lock candidate `cafe_tables` rows in deterministic ID order (`SELECT ... FOR UPDATE`) before calculating occupancy. Recheck current bookings while holding the locks.
-4. Validate opening hours, seating mode, active state, capacity, requested table count, and overlap rules.
-5. Insert the booking and its `booking_tables` assignments in the same transaction.
-6. Insert a minimal `availability_events` record in the same transaction.
-7. Commit and return a safe confirmation payload with booking reference and assigned table codes.
-8. Only after commit, attempt customer and owner email delivery and write separate `email_logs` rows.
-
-A failed email must not cause a retry to create a duplicate booking. Support idempotency on booking submission. Never assume a UI pre-check guarantees that the booking is still available.
-
-### Seat allocation behavior
-
-The prototype's default cafe setting is `shared_seating` to demonstrate remaining-chair tracking. The admin can switch to `exclusive_table`. In shared mode, a table with 4 seats and 2 overlapping allocated seats has 2 seats left; a new party can use those seats only if its party size and requested table selection fit. In exclusive mode, an overlapping booking blocks the full table.
-
-### Realtime behavior
-
-Subscribe to `availability_events` (or use a private authenticated broadcast channel). A received event is only a signal; it is not a source of truth. Re-run the availability query for the currently selected date/time/duration. Unsubscribe on component unmount and avoid duplicate subscriptions.
-
-## 7. API/function boundaries
-
-- `get-public-cafe-settings`: returns only public cafe content, never owner email or private settings.
-- `get-available-tables`: validates query inputs and returns safe availability for a chosen time window.
-- `create-booking`: validates input, calls `create_booking_atomic`, then triggers notifications.
-- `cancel-booking`: owner-protected operation; changes booking status transactionally and emits an availability event.
-- `admin-update-inventory`: owner-protected table and settings updates, with validation against active bookings.
-- `send-booking-notifications`: server-side only; may be internal to the booking function or a separate function with retry support.
-
-Use trusted server secrets only in Supabase Function secrets or a server-only environment. Never add service-role keys or email secrets to any browser bundle or `NEXT_PUBLIC_*` variable.
-
-## 8. Security and RLS
-
-- Enable RLS on every table exposed through the Supabase API.
-- Anonymous visitors may read only published public cafe/menu data and safe table metadata/availability results.
-- Anonymous visitors must not be allowed to SELECT customer booking records or email logs, and must not directly INSERT bookings.
-- All booking creation goes through the trusted server function and atomic database operation.
-- Admin operations require Supabase Auth and a verified owner/admin authorization check in backend logic and RLS.
-- Do not trust a role value supplied by the browser. Manage owner role via a safe admin process.
-- Keep the email provider API key and Supabase service-role/secret key server-side.
-- Validate inputs and rate-limit or otherwise protect public booking endpoints against spam.
-- Avoid logging full customer PII or secrets in application logs.
-
-## 9. Deployment and environment
-
-- Frontend: deploy to Netlify from GitHub; use preview deployments for testing.
-- Backend: Supabase project, SQL migrations, RLS policies, Edge Functions, Realtime configuration.
-- Email: verified sender/provider configuration and server-side secret.
-- `.env.example` contains variable names and non-secret placeholders only.
-- If the browser initializes Supabase, public config may use `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`; treat these as public values and protect data through RLS. Keep service-role/secret keys and email-provider credentials server-side or in Supabase Function secrets. Confirm actual variable names in the existing code before changing them.
-- Do not commit `.env`, service-role keys, SMTP passwords, or real customer exports.
-
-## 10. Observability and recovery
-
-- Log booking reference and operation result, not unnecessary PII.
-- Store email attempt status separately from booking status.
-- Add a retry path for transient email failures, designed so retries never duplicate bookings.
-- Provide a safe admin indication for failed notifications.
-- If realtime disconnects, the UI should continue to query availability and show a reconnect/stale-data state rather than pretending data is live.
+- **Content-Security-Policy (CSP)**: Configured in `next.config.js` and `netlify.toml` with strict `default-src 'self'`, `frame-ancestors 'none'`, and secure external connections (Supabase API & Realtime WSS).
+- **Anti-Clickjacking**: `X-Frame-Options: DENY` and `frame-ancestors 'none'`.
+- **MIME Sniffing Protection**: `X-Content-Type-Options: nosniff`.
+- **Cross-Domain Isolation**: `X-Permitted-Cross-Domain-Policies: none`.
+- **Strict Transport Security**: `Strict-Transport-Security: max-age=31536000; includeSubDomains; preload`.

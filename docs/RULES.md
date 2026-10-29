@@ -1,98 +1,94 @@
-# Development Rules
+# Development & Security Rules
 
-**Project:** Demo Café Website & Real-Time Table Booking  
-**Purpose:** Rules for AI coding assistants and human contributors. Read this file and the other project documents before changing code.
+**Project:** L'Aura Cafe & Artisanal Roastery  
+**Status:** Mandatory Engineering Rules for All AI Assistants and Human Contributors  
+**Last Updated:** Current Production State  
 
-## 1. Source-of-truth rules
+---
 
-1. Read `PRD.md`, `ARCHITECTURE.md`, `DESIGN.md`, `TASKS.md`, and the current `MEMORY.md` before a substantial coding task.
-2. Inspect the existing repository, `package.json`, environment setup, and current implementations before editing. These documents guide the project; they do not authorize a full rewrite of working code.
-3. If code and documents conflict, report the discrepancy and propose a small, explicit decision. Do not silently invent requirements.
-4. Keep `TASKS.md` and `MEMORY.md` updated after meaningful changes, tests, or decisions.
+## 1. ABSOLUTE HIGHEST PRIORITY — ZERO CLIENT SECRET EXPOSURE (ক্লায়েন্টে কোনো সিক্রেট কি বা পাসওয়ার্ড এক্সপোজ না করা)
 
-## 2. General engineering rules
+> [!CAUTION]
+> **CRITICAL SECURITY MANDATE:**
+> Under NO circumstances should any private secret key, privileged token, service-role credential, or SMTP password EVER be exposed to the client-side code, frontend bundles, or public repository.
 
-- Prefer small, focused, reviewable changes.
-- Reuse existing components, services, and conventions; avoid duplicate logic.
-- Do not change unrelated files or remove existing features without a clear reason.
-- Use meaningful names and keep components/functions focused.
-- Avoid adding dependencies unless they provide clear value. Explain new dependencies in the change summary.
-- Do not leave fake implementations, TODO placeholders, or hard-coded success messages in a flow that is described as functional.
-- Keep demo data in a clearly identified seed file or seed script, not mixed into production logic.
+1. **Strict Credential Isolation**:
+   - `SUPABASE_SERVICE_ROLE_KEY`, `GMAIL_APP_PASSWORD`, `SMTP_PASS`, and private database credentials MUST strictly reside in server-side environment variables (`.env.local` / Netlify Environment Variables).
+   - NEVER prefix server-only secrets with `NEXT_PUBLIC_`. Any variable starting with `NEXT_PUBLIC_` is bundled into client JavaScript and readable by anyone opening DevTools.
+   - Client code is ONLY permitted to access `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
+2. **Server-Side Privileged Operations**:
+   - Privileged operations (such as dispatching transactional emails via Nodemailer, reading the private `owner_email`, claiming notification dispatch via `claim_notification_dispatch`, or writing to `email_logs`) must be executed strictly on the server (e.g. inside Next.js App Router route handlers like `/api/send-email`).
+   - Server-side routes MUST validate request origin, enforce rate limiting, and use `SUPABASE_SERVICE_ROLE_KEY` securely without reflecting it to the response.
+3. **Zero Customer PII in Public Bundles & Queries**:
+   - Never allow anonymous users to query the `bookings` table directly.
+   - Public availability must exclusively query privacy-preserving views/functions (`public_booked_slots` / `get_public_booked_slots`), which omit all customer names, emails, phone numbers, and notes.
+   - Never cache other customers' personal booking data in `localStorage` or `sessionStorage`.
 
-## 3. Frontend and TypeScript
+---
 
-- This repository uses a Node.js launcher that invokes the Next.js CLI. Preserve Next.js and the existing JavaScript conventions unless `package.json`/source inspection proves otherwise and the user approves a migration. Do not introduce Vite.
-- Avoid `any`; use explicit types for bookings, table inventory, availability responses, and function results.
-- Treat all client-side values as untrusted. The client may display a pre-check, but it never authorizes a reservation.
-- Use reusable form controls, loading/error/empty/success states, and clear validation messages.
-- Keep Supabase subscription setup and cleanup inside a single lifecycle-safe hook/service; always unsubscribe when no longer needed.
-- Never show “email sent” until the server/provider reports a successful send. Distinguish booking success from notification failure.
+## 2. 100% Dedicated Table Reservation Policy (No Shared Seating)
 
-## 3A. Next.js and Tailwind CSS v4 project constraints
+- **Dedicated Table Exclusivity**: Every reservation reserves the entire physical table privately for the customer party.
+- **Shared Seating Eliminated**: Shared seating between unrelated strangers is completely removed from both the UI and database availability calculation.
+- **Availability Invariant**: Any active confirmed booking on a table for an overlapping time interval (`[start_time, end_time + cleaning_buffer]`) renders the entire table **Reserved** (0 seats available).
+- **Physical Capacity Fit**: Bookings are only permitted if the customer party size is less than or equal to the table's chair capacity (`party_size <= table.capacity`).
 
-- The provided local launcher calls `node_modules/next/dist/bin/next dev --hostname 0.0.0.0`; this is a Next.js development wrapper, not Vite and not a separate Express backend. Inspect the actual filename and `package.json` scripts before editing it.
-- Do not install Vite, create a `vite.config.*`, use `@tailwindcss/vite`, or rewrite startup scripts without explicit need and approval.
-- Tailwind CSS is v4.x in this project; verify the exact installed version from `package.json` and the lockfile. Do not use Tailwind v3 setup such as `@tailwind base;`, `@tailwind components;`, `@tailwind utilities;` or blindly add `tailwind.config.js` content globs.
-- For a Next.js + Tailwind v4 setup, inspect the existing PostCSS config and global stylesheet. The standard setup uses `@tailwindcss/postcss` and `@import "tailwindcss"`; adapt only after checking the current configuration. Official guide: https://tailwindcss.com/docs/installation/framework-guides/nextjs
-- Preserve the current Next.js App Router or Pages Router; determine which one this repository uses before creating/moving routes.
-- The launcher runs `next dev` for development only. Do not configure the production host to run this development wrapper.
+---
 
-## 4. Booking correctness rules
+## 3. Single Master SQL File Maintenance (`supabase-fresh-install.sql`)
 
-- Availability must be computed for the exact requested date, start time, duration, seating mode, opening hours, and cleaning buffer.
-- Use `Asia/Kolkata` as the prototype cafe timezone unless owner requirements change it. Store timestamps consistently in UTC; display in cafe local time.
-- Use start-inclusive/end-exclusive intervals (`[start, end)`) and document buffer behavior.
-- Do not implement booking creation as a sequence of unprotected browser-side reads and inserts.
-- Validate and assign table/chair capacity in one atomic server/database operation with concurrency protection.
-- Make booking submission idempotent so retries/double-clicks do not create duplicate reservations.
-- Cancelled bookings must stop consuming availability according to the status policy; changes must emit an availability event.
-- Never expose other customers' names, emails, phone numbers, or booking details through public queries or realtime events.
-- The default demo seating mode is `shared_seating`; do not assume that shared seating is the final business policy.
+- **Authoritative SQL Source**: All database schemas, performance indexes, RLS policies, atomic functions, security definer triggers, views, and seed data must reside in a single, authoritative master file: `supabase-fresh-install.sql`.
+- **Structured Dependency Order**: Maintain all SQL in strict dependency order across its 12 structured sections (tables → indexes → functions → RLS policies → atomic RPCs → claims → views → security grants → seed data).
+- **Idempotency & Safe Execution**: Always use `CREATE TABLE IF NOT EXISTS`, `CREATE INDEX IF NOT EXISTS`, `CREATE OR REPLACE FUNCTION`, and `ON CONFLICT (id) DO NOTHING`. Never include destructive drops (`DROP TABLE`, `TRUNCATE`, `DELETE FROM`).
+- **Immediate Synchronization**: Whenever any database structure, RPC, or policy is modified, immediately update `supabase-fresh-install.sql` so it remains 100% complete and self-contained.
 
-## 5. Security and privacy rules
+---
 
-- Never place Supabase service-role/secret keys, email API keys, SMTP passwords, or other secrets in frontend code or `NEXT_PUBLIC_*` variables. Those variables are public to the browser.
-- Use only the Supabase anon/publishable key in the browser, combined with correctly configured RLS and server-side authorization.
-- Enable and test RLS for all API-exposed tables.
-- Public users must not directly insert/read private booking rows. Use trusted server functions and the transactional booking operation.
-- Verify owner authorization on the server; never trust an `isAdmin` flag provided by the client.
-- Do not put secrets, real customer data, or `.env` files in Git, screenshots, test fixtures, or project docs.
-- Use fictional names/emails in seed data and test cases.
-- Sanitize provider errors before exposing them to UI users.
+## 4. Strictly English-Only, Concise Code & SQL Comments
 
-## 6. Database and migrations
+- **Strict English Comments**: NEVER write comments in Bengali or any non-English language inside code snippets, SQL queries, JavaScript/JSX files, CSS, configuration files, or shell scripts.
+- **Concise & Necessary Only**: Comments must be concise and strictly focused on essential context or non-obvious logic. Redundant, bloated, or conversational comments are prohibited.
+- **Language Boundary**: While conversational responses in the chat may be in Bengali as requested by the user, all code, SQL statements, and file comments must remain strictly 100% English.
 
-- Store schema changes in version-controlled migrations; avoid undocumented manual production edits.
-- Add appropriate primary keys, foreign keys, uniqueness checks, non-negative/positive capacity checks, and indexes for booking lookup by time/status/table.
-- Keep inventory updates safe when future bookings already exist. Do not reduce a table's capacity below an active allocation without warning/blocking the operation.
-- Use deterministic lock ordering when locking multiple tables to reduce deadlock risk.
-- Never use realtime subscription payloads as the availability source of truth; use them only as change signals, then re-query a trusted availability function.
+---
 
-## 7. UI and accessibility
+## 5. Atomic Database Transactions & Concurrency Control
 
-- Follow `DESIGN.md` tokens instead of introducing arbitrary colors and spacing.
-- Mobile-first layouts; no horizontal overflow on small screens.
-- Use semantic HTML, visible focus indicators, keyboard-accessible interactions, labels for inputs, and accessible status messages.
-- Do not rely on color alone to communicate table status; include text and/or icons.
-- Provide clear messages for no availability, invalid duration, closed hours, stale/reconnecting live status, booking conflict, and email failure.
-- Mark temporary name, photos, location, and menu as demo content.
+- **Server-Authoritative Availability**: Client-side availability checks are purely informational for UX. The authoritative reservation must be executed inside PostgreSQL via the `book_table_atomic` RPC.
+- **Deterministic Row Locking**: `book_table_atomic` must acquire explicit row locks (`SELECT id FROM cafe_tables WHERE id = p_table_id FOR UPDATE`) to eliminate race conditions between simultaneous concurrent booking requests.
+- **Timezone Awareness**: Availability and operating hour comparisons must strictly respect the cafe's configured timezone (`Asia/Kolkata`) using PostgreSQL `NOW() AT TIME ZONE cafe_tz`.
+- **Overnight Hours Support**: Accommodate operating hours spanning midnight (e.g. 08:00 to 01:00 next day) by checking post-midnight boundaries against the previous calendar day's opening time.
 
-## 8. Testing and quality gates
+---
 
-Before calling a booking change complete:
-- Run the relevant tests and build/lint commands available in the repository.
-- Test boundary time intervals, duration validation, shared and exclusive seating modes, multiple-table allocation, cancellation, and table deactivation.
-- Test two simultaneous conflicting requests; only valid non-conflicting capacity may be committed.
-- Test in two browsers to verify realtime refresh.
-- Simulate email provider success and failure; verify that booking state remains correct in both cases.
-- Test RLS as anonymous visitor and authenticated owner.
-- Report commands run and any tests not run. Never claim a test passed if it was not executed.
+## 6. Decoupled Email Notifications & Two-Phase Claims
 
-## 9. Git and delivery
+- **Decoupled Architecture**: Booking creation must be completely decoupled from email dispatch. A network timeout or failure in SMTP delivery must NEVER roll back or cancel a validly committed booking.
+- **Two-Phase Claims**: Email dispatch must use `claim_notification_dispatch` to atomically lock the notification claim row in `notification_claims`. This prevents duplicate emails from being dispatched on page refreshes or concurrent triggers.
+- **Truthful Status Reporting**: The UI and admin dashboard must distinguish between "Booking Confirmed" and "Email Notification Status" (`sent`, `failed`, or `unconfigured`). Never display a false "Email Sent" success message if the SMTP service failed or was not configured.
 
-- Do not commit generated build output, `.env`, provider credentials, or real booking exports.
-- Keep commits/change sets small and descriptive where Git is used.
-- Update `TASKS.md` status only when there is evidence of completion.
-- Add new architectural decisions and important bugs to `MEMORY.md`.
-- At the end of a coding task, summarize changed files, behavior, tests, remaining risks, and next task.
+---
+
+## 7. Continuous Documentation Maintenance (MANDATORY)
+
+- **Immediate Documentation Updates**: After EVERY code, schema, or configuration modification, immediately update:
+  - `docs/MEMORY.md`: Log the session handoff, modified files, technical details of what was implemented, test results, and next steps.
+  - `docs/TASKS.md`: Update task statuses with `[x]` and add new tasks or phases as needed.
+- Maintain a comprehensive, chronological, and truthful record of all work and architectural decisions.
+
+---
+
+## 8. Quality Gates & Test-First Validation
+
+Before concluding any task or declaring work complete:
+1. Run the comprehensive test suite (`test-validation.mjs`) using Node.js:
+   ```powershell
+   & "C:\Program Files\nodejs\node.exe" test-validation.mjs
+   ```
+   All 267+ tests across all 28 test suites must pass with 0 failures.
+2. Run the production build check to ensure zero build or syntax errors:
+   ```powershell
+   & "C:\Program Files\nodejs\npm.cmd" run build
+   ```
+3. Verify that all interactive controls, responsive viewports, and navigation links operate smoothly without console errors or horizontal scrolling.
+4. Never claim an improvement or security fix works without running the verification commands.

@@ -104,7 +104,62 @@ Build a simple single-page cafe website plus an owner dashboard. Cafe name, land
   - `grep_search`: 0 occurrences of 'Private Booth', 'Sunset', 'Balcony' across the entire project.
   - `grep_search`: 0 occurrences of 'resend' across the entire project.
   - `grep_search`: 0 occurrences of 'ADMIN_PIN' in project code.
+- **Date:** 2026-10-24
+- **Changed files:**
+  - `src/context/CafeContext.jsx` (Eliminated public `from('bookings').select('*')` on mount; removed direct select fallback on `bookings` in `fetchPublicBookedSlots`; purged `localStorage` cached reservations; sanitized real-time broadcast payloads to exclude customer PII; added `fetchAdminBookings` and `clearAdminBookings`)
+  - `src/components/AdminDashboard.jsx` (Completely removed `useMagicLink` state, OTP toggle UI, and email OTP dispatch; enforced password-only administrator authentication; hydrated bookings strictly on verified admin session; purged in-memory bookings on sign-out)
+  - `.agents/rules/coding-style.md` (Created persistent rule enforcing strictly English-only comments in all code, SQL scripts, and config files)
+  - `docs/MEMORY.md` & `docs/TASKS.md` (Updated project memory and completed tasks roadmap)
+- **Implemented:**
+  - Complete elimination of public customer booking leak: Anonymous website visitors no longer trigger any query to `bookings` table or receive customer names, emails, and phone numbers.
+  - Complete removal of Magic Link from admin panel as requested.
+  - Formulated idempotent, safe Supabase SQL script enforcing RLS on `bookings`, revoking permissions from `anon`/`PUBLIC`, and restricting SELECT to `is_admin()`.
+  - Consolidated and synchronized master SQL file `supabase-fresh-install.sql` into cleanly structured, sequential sections, fully subsuming all valid elements from `supabase-sync-fix.sql` (`public_booked_slots` view, `auto_complete_expired_bookings()`) and `supabase-schema.sql`.
+  - Added repository-level rule `.agents/rules/coding-style.md` enforcing mandatory documentation updates (`MEMORY.md` & `TASKS.md`) on every change, single master SQL file maintenance, and concise English-only comments.
+- **Date:** 2026-10-24 (Documentation Realignment & Complete Removal of Shared Seating)
+- **Changed files:**
+  - `src/components/AdminDashboard.jsx` (Replaced shared seating option with dedicated table reservation badge; 100% private dining policy)
+  - `src/context/CafeContext.jsx` (Removed shared seating branch in `calculateTableAvailability` and `createBooking`; all reservations enforce dedicated table policy)
+  - `src/components/LiveTableMap.jsx` (Removed `isPartiallyAvailable` states, orange border styling, and "Shared (x Free)" badges)
+  - `src/constants/defaultData.js` (Updated seating mode comment to 100% Dedicated Table Reservation Policy)
+  - `docs/DESIGN.md` (Completely updated to document actual ultra-premium dark luxury aesthetic `#110b08`, Neumorphic glass cards, Playfair Display & Plus Jakarta Sans typography, custom clock picker, confetti, and dedicated table policy)
+  - `docs/ARCHITECTURE.md` (Completely updated to document Next.js 16.4.2 App Router, Turbopack, Tailwind CSS v4.3.3, Nodemailer Gmail SMTP, atomic `book_table_atomic`, zero PII views, and hybrid Realtime sync)
+  - `docs/PRD.md` (Completely updated to match current production features and completely eliminated all mentions of shared seating)
+  - `docs/RULES.md` (Completely updated with Rule 1 set to absolute highest priority: Zero Client Secret Exposure / ক্লায়েন্টে কোনো সিক্রেট কি বা পাসওয়ার্ড এক্সপোজ না করা)
+  - `.agents/rules/coding-style.md` (Updated with client secret isolation and dedicated table reservation policy)
+  - `docs/TASKS.md` (Added and completed Phase 9: Documentation Realignment & Complete Removal of Shared Seating)
+  - Removed obsolete files: `supabase-sync-fix.sql` and `public/sw.js`
+- **Implemented:**
+  - 100% Dedicated Table Policy: Shared seating between separate parties is completely eradicated from the codebase and documentation. Any overlapping booking on a table locks the entire table.
+  - Zero Client Secret Exposure: Documented as highest priority in `RULES.md` and `coding-style.md`. Privileged secrets (`SUPABASE_SERVICE_ROLE_KEY`, `GMAIL_APP_PASSWORD`) strictly confined to server-side route (`/api/send-email`).
+  - Total synchronization of `docs/DESIGN.md`, `docs/ARCHITECTURE.md`, `docs/PRD.md`, and `docs/RULES.md` with the live website codebase.
+- **Tests run and results:**
+  - `node test-validation.mjs`: 267 Passed, 0 Failed across all 28 validation, RLS, schema, and security test phases.
+  - `npm run build`: Verified successful production build.
 - **Next steps for deployment:**
-  - Set `GMAIL_USER`, `GMAIL_APP_PASSWORD`, and `CAFE_OWNER_EMAIL` in `.env.local` / Netlify environment variables.
-  - Create Supabase project, execute `supabase-schema.sql` in the SQL Editor, and populate `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
+- **Date:** 2026-10-24 (Precision Dual Palette Calibration — Public #140e0a & Admin #1c140f)
+- **Changed files:**
+  - `app/globals.css` (Tuned `--color-cafe-950` and `--color-espresso-dark` to `#140e0a`, panels to `#1a120c`, cards to `#201610`, nav to `#17100b`, inputs/tray to `#18110b`, secondary buttons to `#291c14`, scrollbar track to `#140e0a`)
+  - `app/layout.jsx` (Updated `themeColor: '#140e0a'` and body `bg-[#140e0a]`)
+  - `app/admin/page.jsx` (Kept warm velvet mocha `bg-[#1c140f]` for admin management workspace as requested)
+  - `src/components/AdminDashboard.jsx` (Kept warm velvet mocha `bg-[#241a13]` for header, tables, and modals)
+  - `src/components/EmailCenterDrawer.jsx` (Kept warm velvet mocha `bg-[#201711]` and `bg-[#251a13]`)
+  - `app/not-found.jsx` (Updated 404 page background to `bg-[#140e0a]`)
+  - `src/components/Hero.jsx` (Updated gradient overlay to `from-[#140e0a] via-[#140e0a]/85 to-[#140e0a]/50`)
+  - `src/components/Footer.jsx` (Updated footer background to `#120c08`)
+  - `src/components/Navbar.jsx` (Updated sticky header to `bg-[#18110c]/95` and mobile menu drawer to `bg-[#1b130e]`)
+  - `src/components/MenuSection.jsx` (Updated dish image gradient overlay to `from-[#201610]`)
+  - `src/components/AmbianceSection.jsx` (Updated ambiance photo gradient overlays to `from-[#1b130e]`)
+  - `src/components/BookingModal.jsx` (Updated header and summary box to `bg-[#1a120c]`)
+  - `src/components/ClockTimePicker.jsx` (Updated modal card to `bg-[#1a120c]` and dial to `bg-[#201610]`)
+  - `docs/DESIGN.md` (Updated design tokens documenting `#140e0a` public and `#1c140f` admin palette split)
+  - `docs/TASKS.md` (Recorded Phase 10 task completion)
+- **Implemented:**
+  - Precisely calibrated the public site base color to `#140e0a` (subtly less dark than original `#110b08`, removing pitch-black OLED glare while maintaining deep espresso luxury).
+  - Preserved the warm velvet mocha `#1c140f` / `#241a13` theme inside the admin management workspace as requested.
+- **Tests run and results:**
+  - `node test-validation.mjs`: 267 Passed, 0 Failed.
+  - `npm run build`: Compiled successfully with Next.js Turbopack, zero errors.
+
+
 
