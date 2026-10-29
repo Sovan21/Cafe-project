@@ -1,7 +1,7 @@
 # Code, SQL, and Documentation Standards
 
 ## 1. Zero Client Secret Exposure & Credential Isolation (HIGHEST PRIORITY)
-- **Zero Secrets on Client (ক্লায়েন্টে কোনো সিক্রেট কি বা পাসওয়ার্ড এক্সপোজ না করা)**:
+- **Zero Secrets on Client 
   - NEVER expose `SUPABASE_SERVICE_ROLE_KEY`, `GMAIL_APP_PASSWORD`, `SMTP_PASS`, or database connection passwords in client-side code, public components, or `NEXT_PUBLIC_*` variables.
   - Privileged actions (sending emails, claiming notification dispatch, reading private `owner_email`) must execute strictly inside server-side routes (`/api/send-email`).
   - Never query or leak customer PII (names, emails, phones) to anonymous visitors.
